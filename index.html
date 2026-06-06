@@ -42,6 +42,7 @@
             background-size: cover;
             background-position: center;
             z-index: 0;
+            transition: background-image 0.2s;
         }
         .page {
             position: absolute;
@@ -96,6 +97,7 @@
             padding: 8px 12px;
             border-radius: 40px;
             backdrop-filter: blur(10px);
+            position: relative;
         }
         .back-home {
             background: rgba(255,255,240,0.9);
@@ -130,52 +132,137 @@
             letter-spacing: 1px;
             text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
-        .role-selector {
-            background: rgba(0,0,0,0.4);
-            border-radius: 30px;
+        /* 角色下拉菜单 */
+        .role-dropdown-menu {
+            position: absolute;
+            top: 55px;
+            right: 16px;
+            background: rgba(28,28,30,0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 8px 0;
+            min-width: 140px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            z-index: 100;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .role-dropdown-item {
+            padding: 10px 16px;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.1s;
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 4px 8px;
+            gap: 10px;
         }
-        .role-selector select {
-            background: rgba(255,255,255,0.9);
-            border: none;
-            padding: 4px 8px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 500;
+        .role-dropdown-item:hover {
+            background: rgba(255,255,255,0.15);
+        }
+        .role-dropdown-item.active {
+            background: #007aff;
+            color: white;
+        }
+        .role-dropdown-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            object-fit: cover;
+            font-size: 20px;
+            text-align: center;
+            line-height: 28px;
+        }
+        /* 多选模式下的聊天容器偏移 */
+        .chat-messages.multi-select-active {
+            padding-left: 40px;
         }
         .chat-messages {
             flex: 1;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 4px;
             margin-bottom: 16px;
             padding-right: 4px;
+            transition: padding-left 0.2s;
+        }
+        /* 消息行（包含头像和气泡） */
+        .message-row {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 6px;
+            position: relative;
+        }
+        .message-row.user {
+            justify-content: flex-end;
+        }
+        .message-row.ai {
+            justify-content: flex-start;
+        }
+        /* 头像样式 */
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin: 0 8px;
+            background: #ccc;
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: normal;
+            overflow: hidden;
+        }
+        .avatar.hidden {
+            visibility: hidden;
         }
         .message {
-            max-width: 85%;
-            padding: 10px 14px;
-            border-radius: 24px;
+            max-width: 70%;
+            padding: 8px 14px;
+            border-radius: 20px;
             background: #e5e5eaee;
             color: #111;
             word-break: break-word;
             font-size: 15px;
             line-height: 1.4;
             position: relative;
-            margin-bottom: 8px;
-            margin-left: 32px;
         }
         .message.user {
-            align-self: flex-end;
             background: #007affdd;
             color: white;
         }
         .message.ai {
-            align-self: flex-start;
             background: #e5e5eaee;
+        }
+        /* 多选复选框 - 固定在最左边 */
+        .message-checkbox {
+            position: absolute;
+            left: -28px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            border: 2px solid #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 15;
+        }
+        .chat-messages.multi-select-active .message-row {
+            margin-left: 0;
+        }
+        /* 多选模式下，每个消息行整体左移让位给复选框（实际通过容器padding实现） */
+        .message-checkbox.checked::after {
+            content: "✓";
+            color: #007aff;
+            font-size: 14px;
+            font-weight: bold;
         }
         .regenerate-icon {
             position: absolute;
@@ -306,7 +393,16 @@
             align-items: center;
             gap: 12px;
         }
-        .role-avatar { font-size: 40px; }
+        .role-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            font-size: 32px;
+            text-align: center;
+            line-height: 44px;
+            background: #ccc;
+        }
         .role-info { flex: 1; }
         .role-name { font-weight: bold; font-size: 16px; }
         .modal {
@@ -381,34 +477,13 @@
             gap: 8px;
         }
         .context-menu div:hover { background: #3a3a3c; }
-        .message-checkbox {
-            position: absolute;
-            left: -28px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 20px;
-            height: 20px;
-            background: white;
-            border-radius: 4px;
-            border: 2px solid #888;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 15;
-        }
-        .message-checkbox.checked::after {
-            content: "✓";
-            color: #007aff;
-            font-size: 14px;
-            font-weight: bold;
-        }
         .multi-select-bar {
             position: fixed;
             bottom: 20px;
             left: 20px;
             right: 20px;
-            background: #1c1c1e;
+            background: rgba(28,28,30,0.95);
+            backdrop-filter: blur(20px);
             border-radius: 40px;
             padding: 10px 20px;
             display: flex;
@@ -416,6 +491,8 @@
             align-items: center;
             z-index: 350;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            font-size: 14px;
+            color: white;
         }
         .schedule-item {
             font-size: 13px;
@@ -500,6 +577,81 @@
         .message.user .image-description {
             color: rgba(255,255,255,0.9);
         }
+        /* 消息高亮 */
+        .message-highlight {
+            background: #ffeb3b !important;
+            color: #111 !important;
+            transition: background 0.2s;
+        }
+        /* 搜索模态窗 */
+        .search-modal .modal-content {
+            width: 340px;
+            max-height: 80%;
+            padding: 16px;
+        }
+        .search-input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 30px;
+            border: none;
+            background: #2c2c30;
+            color: white;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+        .search-input::placeholder {
+            color: #aaa;
+        }
+        .search-result-item {
+            padding: 12px;
+            border-bottom: 1px solid #3a3a3c;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .search-result-item:hover {
+            background: #2c2c30;
+        }
+        .result-preview {
+            font-size: 14px;
+            margin-bottom: 6px;
+            word-break: break-word;
+            color: #eee;
+        }
+        .result-preview mark {
+            background: #ff9f0a;
+            color: #000;
+            border-radius: 4px;
+            padding: 0 2px;
+        }
+        .result-meta {
+            font-size: 12px;
+            color: #aaa;
+            display: flex;
+            gap: 12px;
+        }
+        .no-result {
+            text-align: center;
+            color: #aaa;
+            padding: 20px;
+        }
+        .search-stats {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 8px;
+            text-align: center;
+        }
+        /* 头像上传预览 */
+        .avatar-preview {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 12px;
+        }
+        .flex-start {
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -521,11 +673,12 @@
         <div class="header">
             <button class="back-home" data-home>←</button>
             <div class="role-display" id="roleDisplay"></div>
-            <div class="role-selector">
-                <select id="chatRoleSelect"></select>
-            </div>
+            <button id="roleDropdownBtn" class="icon-btn" style="font-size: 14px; padding: 4px 10px;">▼</button>
+            <button class="icon-btn" id="searchChatBtn">🔍</button>
             <button class="icon-btn" id="openRoleParamsBtn">⚙️</button>
         </div>
+        <!-- 角色下拉菜单 -->
+        <div id="roleDropdownMenu" class="role-dropdown-menu" style="display:none;"></div>
         <div class="chat-messages" id="chatMessagesContainer"></div>
         <div class="chat-input-area">
             <input type="text" id="messageInput" class="chat-input" placeholder="输入消息...">
@@ -561,7 +714,6 @@
         <div class="header"><button id="backToRolesBtn" class="back-home">←</button><div class="page-title" id="roleDetailTitle">编辑角色</div><button id="deleteRoleBtn" class="danger-btn" style="padding:4px 12px;">删除</button></div>
         <div class="card-list">
             <div class="flex-between"><label>角色名</label><input id="editRoleName" placeholder="角色名"></div>
-            <div class="flex-between"><label>头像 (Emoji)</label><input id="editRoleAvatar" maxlength="4" style="width:80px;"></div>
         </div>
         <div class="tab-bar">
             <button class="tab-btn active" data-role-tab="persona">人设</button>
@@ -569,10 +721,50 @@
             <button class="tab-btn" data-role-tab="world">世界书</button>
             <button class="tab-btn" data-role-tab="user">我的设定</button>
         </div>
-        <div id="rolePersonaArea"><div class="card-list"><textarea id="editPersonaPrompt" rows="6" placeholder="角色人设 Prompt..."></textarea><button id="savePersonaBtn" style="margin-top:8px;">保存人设</button></div></div>
-        <div id="roleMemoryArea" style="display:none;"><div class="card-list" id="editMemoryFactsList"></div><div class="flex-between"><button id="addMemoryFactBtn" class="small-btn" style="background:#34c759;">+ 添加事实</button><button id="manualSummarizeBtn" class="small-btn" style="background:#34c759;">🧠 从对话总结记忆</button></div></div>
-        <div id="roleWorldArea" style="display:none;"><div class="tab-bar" style="margin-bottom:8px;"><button class="small-btn world-cat-btn" data-wbcat="人物">人物</button><button data-wbcat="地点">地点</button><button data-wbcat="世界观">世界观</button><button data-wbcat="自定义">自定义</button></div><div id="editWorldbookList" class="card-list"></div><div><input id="newWbName" placeholder="名称"><input id="newWbContent" placeholder="内容"><select id="newWbCat"><option>人物</option><option>地点</option><option>世界观</option><option>自定义</option></select><button id="addWbEntryBtn">+添加</button></div></div>
-        <div id="roleUserArea" style="display:none;"><div class="card-list"><label class="setting-label">用户背景（针对此角色）</label><textarea id="editUserPersona" rows="4" placeholder="例如：我是经纪人，负责你的行程安排。"></textarea><button id="saveUserPersonaBtn">保存</button></div></div>
+        <!-- 人设标签页 -->
+        <div id="rolePersonaArea">
+            <div class="card-list">
+                <div class="flex-between"><label>角色头像</label>
+                    <div class="flex-start">
+                        <div id="roleAvatarPreview" class="avatar-preview" style="background:#ccc; border-radius:50%;"></div>
+                        <button id="uploadRoleAvatarBtn" class="small-btn" style="background:#34c759;">📷 上传头像</button>
+                        <button id="resetRoleAvatarBtn" class="small-btn" style="background:#555;">重置默认</button>
+                    </div>
+                </div>
+                <div class="flex-between" style="margin-top:12px;"><label>聊天背景图</label>
+                    <button id="uploadRoleBgBtn" class="small-btn" style="background:#34c759;">🖼️ 上传背景</button>
+                    <button id="resetRoleBgBtn" class="small-btn" style="background:#555;">重置全局</button>
+                </div>
+                <textarea id="editPersonaPrompt" rows="6" placeholder="角色人设 Prompt..."></textarea>
+                <button id="savePersonaBtn" style="margin-top:8px;">保存人设</button>
+            </div>
+        </div>
+        <!-- 记忆标签页 -->
+        <div id="roleMemoryArea" style="display:none;">
+            <div class="card-list" id="editMemoryFactsList"></div>
+            <div class="flex-between"><button id="addMemoryFactBtn" class="small-btn" style="background:#34c759;">+ 添加事实</button><button id="manualSummarizeBtn" class="small-btn" style="background:#34c759;">🧠 从对话总结记忆</button></div>
+        </div>
+        <!-- 世界书标签页 -->
+        <div id="roleWorldArea" style="display:none;">
+            <div class="tab-bar" style="margin-bottom:8px;"><button class="small-btn world-cat-btn" data-wbcat="人物">人物</button><button data-wbcat="地点">地点</button><button data-wbcat="世界观">世界观</button><button data-wbcat="自定义">自定义</button></div>
+            <div id="editWorldbookList" class="card-list"></div>
+            <div><input id="newWbName" placeholder="名称"><input id="newWbContent" placeholder="内容"><select id="newWbCat"><option>人物</option><option>地点</option><option>世界观</option><option>自定义</option></select><button id="addWbEntryBtn">+添加</button></div>
+        </div>
+        <!-- 我的设定标签页 -->
+        <div id="roleUserArea" style="display:none;">
+            <div class="card-list">
+                <div class="flex-between"><label>用户头像</label>
+                    <div class="flex-start">
+                        <div id="userAvatarPreview" class="avatar-preview" style="background:#ccc; border-radius:50%;"></div>
+                        <button id="uploadUserAvatarBtn" class="small-btn" style="background:#34c759;">📷 上传头像</button>
+                        <button id="resetUserAvatarBtn" class="small-btn" style="background:#555;">重置默认</button>
+                    </div>
+                </div>
+                <label class="setting-label" style="margin-top:12px;">用户背景（针对此角色）</label>
+                <textarea id="editUserPersona" rows="4" placeholder="例如：我是经纪人，负责你的行程安排。"></textarea>
+                <button id="saveUserPersonaBtn">保存</button>
+            </div>
+        </div>
     </div>
 
     <!-- 热点页 -->
@@ -589,7 +781,7 @@
         </div>
     </div>
 
-    <!-- 设置页（新增副模型配置） -->
+    <!-- 设置页 -->
     <div id="settingsPage" class="page">
         <div class="header"><button class="back-home" data-home>←</button><div class="page-title">设置</div></div>
         
@@ -602,7 +794,7 @@
             <button id="saveApiSettingsBtn">保存 API 设置</button>
         </div>
         
-        <!-- 副模型配置（记忆总结专用） -->
+        <!-- 副模型配置 -->
         <div class="card-list">
             <h4>🧠 副模型（记忆总结专用）</h4>
             <div class="setting-row">
@@ -628,6 +820,15 @@
                 <div class="setting-row"><label>Cloudinary Cloud Name</label><input id="cloudName" value="dyuoqc5pz"></div>
                 <div class="setting-row"><label>Cloudinary Upload Preset</label><input id="uploadPreset" value="dobby_unsigned_preset"></div>
                 <button id="saveVisionSettingsBtn" class="small-btn">保存识图设置</button>
+            </div>
+        </div>
+
+        <!-- 全局壁纸 -->
+        <div class="card-list">
+            <h4>🎨 主页背景图</h4>
+            <div class="flex-between">
+                <button id="uploadGlobalWallpaperBtn" style="background:#34c759;">📷 上传背景图</button>
+                <button id="resetGlobalWallpaperBtn" style="background:#555;">重置默认</button>
             </div>
         </div>
         
@@ -670,8 +871,30 @@
     </div>
 </div>
 
-<!-- 通用模态窗 -->
-<div id="genericModal" class="modal" style="display:none;"><div class="modal-content"><h3 id="modalTitle">选择</h3><div id="modalBody"></div><div class="flex-between" style="margin-top:16px;"><button id="modalCancelBtn">取消</button><button id="modalConfirmBtn" style="background:#007aff;">确认</button></div></div></div>
+<!-- 搜索聊天记录模态窗 -->
+<div id="searchModal" class="modal search-modal" style="display:none;">
+    <div class="modal-content">
+        <h3 style="margin-bottom:12px;">🔍 搜索聊天记录</h3>
+        <input type="text" id="searchKeywordInput" class="search-input" placeholder="输入关键词..." autocomplete="off">
+        <div id="searchResultsContainer" style="max-height: 400px; overflow-y: auto;"></div>
+        <div class="search-stats" id="searchStats"></div>
+        <div class="flex-between" style="margin-top:16px;">
+            <button id="closeSearchModalBtn" style="background:#555;">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 通用模态窗（用于删除确认等） -->
+<div id="genericModal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <h3 id="modalTitle">提示</h3>
+        <div id="modalBody"></div>
+        <div class="flex-between" style="margin-top:16px;">
+            <button id="modalCancelBtn">取消</button>
+            <button id="modalConfirmBtn" style="background:#007aff;">确认</button>
+        </div>
+    </div>
+</div>
 
 <!-- 图片放大模态窗 -->
 <div id="imagePreviewModal" class="modal" style="display:none;">
@@ -700,6 +923,7 @@
     // 主动消息相关变量
     let activeMsgTimer = null;
     let lastProactiveMessage = "";
+    let lastUserMessageTime = Date.now();
 
     // 天行数据 API Key
     const TIANXING_API_KEY = "3953ec99c4f5083c015cd59cb94d7fb7";
@@ -723,6 +947,8 @@
         cloudName: "dyuoqc5pz",
         uploadPreset: "dobby_unsigned_preset"
     };
+    // 全局壁纸
+    let globalWallpaper = "";
 
     // ========== 调试日志捕获 ==========
     let consoleLogs = [];
@@ -777,6 +1003,38 @@
         showToast("已导出日志");
     }
 
+    // 辅助函数：压缩图片为 base64 (最大宽高 300px，质量 0.7)
+    function compressAndUpload(file, maxSize = 300, quality = 0.7) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+                    if (width > height && width > maxSize) {
+                        height = (height * maxSize) / width;
+                        width = maxSize;
+                    } else if (height > maxSize) {
+                        width = (width * maxSize) / height;
+                        height = maxSize;
+                    }
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    resolve(dataUrl);
+                };
+                img.onerror = reject;
+            };
+            reader.onerror = reject;
+        });
+    }
+
     // 辅助函数
     function getCurrentData() {
         if (!roleData[currentRole]) {
@@ -785,7 +1043,8 @@
                 memoryFacts: [],
                 worldbook: { 人物: [], 地点: [], 世界观: [], 自定义: [] },
                 persona: `你叫${currentRole}，说话简短自然，像朋友聊天。每次回复拆成2-5个短句，每个短句作为独立气泡。`,
-                userPersona: "", avatar: "😊", params: { contextRange: "20", temperature: 0.7, topP: 0.8, maxTokens: 1024, autoMemEnable: false, autoMemInterval: 30 },
+                userPersona: "", avatar: "", userAvatar: "", chatBackground: "",
+                params: { contextRange: "20", temperature: 0.7, topP: 0.8, maxTokens: 1024, autoMemEnable: false, autoMemInterval: 30 },
                 msgSinceLastSummary: 0,
                 activeMsg: {
                     enabled: false,
@@ -795,7 +1054,8 @@
                     pollInterval: 15,
                     sentToday: 0,
                     lastCheckDate: new Date().toDateString(),
-                    consecutiveNoReply: 0
+                    consecutiveNoReply: 0,
+                    lastUserMsgTime: Date.now()
                 }
             };
         }
@@ -803,13 +1063,14 @@
         if (!d.params) d.params = { contextRange: "20", temperature: 0.7, topP: 0.8, maxTokens: 1024, autoMemEnable: false, autoMemInterval: 30 };
         if (d.msgSinceLastSummary === undefined) d.msgSinceLastSummary = 0;
         if (!d.schedule) d.schedule = { today: [], tomorrow: [] };
-        if (!d.avatar) d.avatar = "😊";
-        if (!d.persona) d.persona = `你叫${currentRole}，自然聊天，短句回复。`;
+        if (d.avatar === undefined) d.avatar = "";
+        if (d.userAvatar === undefined) d.userAvatar = "";
+        if (d.chatBackground === undefined) d.chatBackground = "";
         if (d.userPersona === undefined) d.userPersona = "";
         if (!d.messages) d.messages = [];
         if (!d.memoryFacts) d.memoryFacts = [];
         if (!d.activeMsg) {
-            d.activeMsg = { enabled: false, dailyLimit: 10, stopThreshold: 5, activeInterval: 90, pollInterval: 15, sentToday: 0, lastCheckDate: new Date().toDateString(), consecutiveNoReply: 0 };
+            d.activeMsg = { enabled: false, dailyLimit: 10, stopThreshold: 5, activeInterval: 90, pollInterval: 15, sentToday: 0, lastCheckDate: new Date().toDateString(), consecutiveNoReply: 0, lastUserMsgTime: Date.now() };
         }
         let todayStr = new Date().toDateString();
         if (d.activeMsg.lastCheckDate !== todayStr) {
@@ -818,10 +1079,20 @@
         }
         return d;
     }
-    function saveAll() { localStorage.setItem("sullyos_data", JSON.stringify({ roles, roleData, lastActiveDate, activeMsgCountToday })); }
+    function saveAll() { 
+        let toSave = { roles, roleData, lastActiveDate, activeMsgCountToday, globalWallpaper };
+        localStorage.setItem("sullyos_data", JSON.stringify(toSave)); 
+    }
     function loadAll() {
         let raw = localStorage.getItem("sullyos_data");
-        if (raw) { let d = JSON.parse(raw); roles = d.roles; roleData = d.roleData; lastActiveDate = d.lastActiveDate; activeMsgCountToday = d.activeMsgCountToday; }
+        if (raw) { 
+            let d = JSON.parse(raw); 
+            roles = d.roles; 
+            roleData = d.roleData; 
+            lastActiveDate = d.lastActiveDate; 
+            activeMsgCountToday = d.activeMsgCountToday;
+            globalWallpaper = d.globalWallpaper || "";
+        }
         let today = new Date().toDateString();
         if (today !== lastActiveDate) { activeMsgCountToday = 0; lastActiveDate = today; saveAll(); }
         // 加载副模型设置
@@ -867,6 +1138,25 @@
         if (uploadPreset) uploadPreset.value = visionSettings.uploadPreset;
         toggleVisionSettingsUI();
         updateImageUploadButtonVisibility();
+
+        // 恢复全局壁纸
+        if (globalWallpaper) {
+            document.getElementById("wallpaperBg").style.backgroundImage = `url(${globalWallpaper})`;
+        } else {
+            document.getElementById("wallpaperBg").style.backgroundImage = "url('https://picsum.photos/id/104/800/1200')";
+        }
+
+        // 修复：加载当前角色的最后用户发言时间
+        let curData = getCurrentData();
+        if (curData.activeMsg && curData.activeMsg.lastUserMsgTime) {
+            lastUserMessageTime = curData.activeMsg.lastUserMsgTime;
+        } else {
+            lastUserMessageTime = Date.now();
+            if (curData.activeMsg) curData.activeMsg.lastUserMsgTime = lastUserMessageTime;
+            saveAll();
+        }
+        // 更新角色下拉菜单
+        updateRoleDropdownMenu();
     }
 
     // API 配置（主模型）
@@ -937,7 +1227,6 @@
                 maxTokens: secondarySettings.maxTokens
             };
         }
-        // 回退到主模型
         let main = getApiSettings();
         return {
             apiKey: main.apiKey,
@@ -1161,14 +1450,15 @@
         await checkAutoSummary();
     }
 
-    // 自动总结记忆（使用副模型或回退）
+    // 自动总结记忆
     async function checkAutoSummary() {
         let data = getCurrentData();
         if (!data.params.autoMemEnable) return;
         data.msgSinceLastSummary = (data.msgSinceLastSummary || 0) + 1;
         if (data.msgSinceLastSummary >= data.params.autoMemInterval) {
-            data.msgSinceLastSummary = 0;
             await summarizeLongTermMemory(true);
+            data.msgSinceLastSummary = 0;
+            saveAll();
         }
         saveAll();
     }
@@ -1214,14 +1504,15 @@
         } catch (e) { if (!silent) showToast("总结失败: " + e.message); }
     }
 
-    // 发送普通文本消息
-    async function sendMessage(text) {
+    // 发送普通文本消息（支持 skipActiveReset 参数，用于自动生成不重置主动消息状态）
+    async function sendMessage(text, skipActiveReset = false) {
         if (!text.trim() || isWaitingForAI) return;
         updateLocationAuto();
         let data = getCurrentData();
-        if (data.activeMsg) {
+        if (!skipActiveReset && data.activeMsg) {
             data.activeMsg.consecutiveNoReply = 0;
-            lastUserMessageTime = Date.now();
+            data.activeMsg.lastUserMsgTime = Date.now();
+            lastUserMessageTime = data.activeMsg.lastUserMsgTime;
             saveAll();
         }
         let userMsg = { id: Date.now(), role: "user", content: text, timestamp: Date.now() };
@@ -1246,6 +1537,33 @@
         } finally {
             isWaitingForAI = false;
             btn.disabled = false; btn.textContent = "发送";
+        }
+    }
+
+    // 用于自动生成回复（不重置主动消息）
+    async function autoGenerateReplyAfterDelete() {
+        let data = getCurrentData();
+        if (data.messages.length === 0) return;
+        let lastMsg = data.messages[data.messages.length - 1];
+        if (lastMsg.role === "user") {
+            // 不重置主动消息状态
+            let text = lastMsg.content;
+            if (isWaitingForAI) return;
+            isWaitingForAI = true;
+            let btn = document.getElementById("sendMessageBtn");
+            btn.disabled = true; btn.textContent = "思考中...";
+            try {
+                let extraSystem = "";
+                if (shouldInjectSchedule(text)) extraSystem += getScheduleContext();
+                if (shouldInjectHot(text)) extraSystem += getHotContext();
+                let bubbles = await callDeepSeekBubbles(text, null, extraSystem);
+                await addAiBubblesSequentially(bubbles);
+            } catch (e) {
+                showToast("自动回复失败: " + e.message);
+            } finally {
+                isWaitingForAI = false;
+                btn.disabled = false; btn.textContent = "发送";
+            }
         }
     }
 
@@ -1450,22 +1768,144 @@
         renderChat();
     }
 
-    // 渲染聊天
+    // ========== 多选删除核心逻辑 ==========
+    // 进入多选模式，默认选中指定消息
+    function enterMultiSelectMode(defaultId = null) {
+        if (multiSelectMode) return;
+        multiSelectMode = true;
+        selectedMsgIds.clear();
+        if (defaultId) selectedMsgIds.add(defaultId);
+        // 添加多选样式类，使聊天容器左padding
+        const container = document.getElementById("chatMessagesContainer");
+        container.classList.add("multi-select-active");
+        renderChat();
+        // 显示底部多选栏
+        let bar = document.getElementById("multiSelectBar");
+        if (!bar) {
+            bar = document.createElement("div");
+            bar.id = "multiSelectBar";
+            bar.className = "multi-select-bar";
+            document.body.appendChild(bar);
+        }
+        bar.innerHTML = `<span>已选择 <span id="selectedCount">${selectedMsgIds.size}</span> 条消息</span>
+                         <div>
+                             <button id="cancelMultiSelectBtn" style="background:#555;">取消</button>
+                             <button id="confirmDeleteBtn" class="danger-btn" style="margin-left:12px;">删除选中</button>
+                         </div>`;
+        document.getElementById("cancelMultiSelectBtn").onclick = exitMultiSelectMode;
+        document.getElementById("confirmDeleteBtn").onclick = () => {
+            // 显示确认弹窗
+            const modal = document.getElementById("genericModal");
+            const modalTitle = document.getElementById("modalTitle");
+            const modalBody = document.getElementById("modalBody");
+            modalTitle.innerText = "确认删除";
+            modalBody.innerHTML = `确定要删除选中的 ${selectedMsgIds.size} 条消息吗？`;
+            modal.style.display = "flex";
+            const confirmBtn = document.getElementById("modalConfirmBtn");
+            const cancelBtn = document.getElementById("modalCancelBtn");
+            const closeModal = () => { modal.style.display = "none"; };
+            confirmBtn.onclick = () => {
+                closeModal();
+                confirmDeleteSelected();
+            };
+            cancelBtn.onclick = closeModal;
+        };
+        updateSelectedCount();
+    }
+
+    function exitMultiSelectMode() {
+        multiSelectMode = false;
+        selectedMsgIds.clear();
+        const container = document.getElementById("chatMessagesContainer");
+        container.classList.remove("multi-select-active");
+        const bar = document.getElementById("multiSelectBar");
+        if (bar) bar.remove();
+        renderChat();
+    }
+
+    function updateSelectedCount() {
+        const countSpan = document.getElementById("selectedCount");
+        if (countSpan) countSpan.innerText = selectedMsgIds.size;
+    }
+
+    function toggleSelectMessage(id) {
+        if (selectedMsgIds.has(id)) selectedMsgIds.delete(id);
+        else selectedMsgIds.add(id);
+        updateSelectedCount();
+        renderChat(); // 重新渲染以更新复选框样式
+    }
+
+    async function confirmDeleteSelected() {
+        if (selectedMsgIds.size === 0) {
+            exitMultiSelectMode();
+            return;
+        }
+        let data = getCurrentData();
+        let all = data.messages;
+        // 获取所有选中消息的索引
+        let selectedIndices = [];
+        for (let i = 0; i < all.length; i++) {
+            if (selectedMsgIds.has(all[i].id)) selectedIndices.push(i);
+        }
+        if (selectedIndices.length === 0) {
+            exitMultiSelectMode();
+            return;
+        }
+        // 判断是否有用户消息被选中
+        let hasUserMsg = selectedIndices.some(idx => all[idx].role === "user");
+        let newMessages;
+        if (hasUserMsg) {
+            // 找到最靠前的一个用户消息索引
+            let firstUserIdx = Math.min(...selectedIndices.filter(idx => all[idx].role === "user"));
+            // 删除该用户消息及之后所有消息
+            newMessages = all.slice(0, firstUserIdx);
+        } else {
+            // 只删除选中的 AI 消息
+            newMessages = all.filter((_, idx) => !selectedIndices.includes(idx));
+        }
+        data.messages = newMessages;
+        saveAll();
+        exitMultiSelectMode();
+        renderChat();
+        // 删除后如果最后一条消息是用户消息，自动生成回复（不重置主动消息）
+        if (data.messages.length > 0 && data.messages[data.messages.length - 1].role === "user") {
+            await autoGenerateReplyAfterDelete();
+        }
+    }
+
+    // 渲染聊天（带头像，连续消息隐藏头像，支持多选复选框）
     function renderChat() {
         let container = document.getElementById("chatMessagesContainer");
         if (!container) return;
         let data = getCurrentData();
         let messages = data.messages || [];
+        let roleAvatarUrl = data.avatar || "";
+        let userAvatarUrl = data.userAvatar || "";
         let html = '';
-        for (let msg of messages) {
-            let isSelected = selectedMsgIds.has(msg.id);
-            let checkboxHtml = multiSelectMode ? `<div class="message-checkbox ${isSelected ? 'checked' : ''}" data-id="${msg.id}"></div>` : '';
-            let versionHtml = '';
-            if (msg.role === 'ai' && msg.versions && msg.versions.length > 1) {
-                let idx = msg.currentVersionIndex !== undefined ? msg.currentVersionIndex : 0;
-                versionHtml = `<div class="version-indicator" data-id="${msg.id}"><span class="version-arrow" data-id="${msg.id}" data-delta="-1">‹</span>${idx + 1}/${msg.versions.length}<span class="version-arrow" data-id="${msg.id}" data-delta="1">›</span></div>`;
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
+            const isUser = msg.role === "user";
+            const sender = isUser ? "user" : "ai";
+            let showAvatar = true;
+            if (i > 0 && messages[i-1].role === msg.role) {
+                showAvatar = false;
             }
-            let msgClass = msg.role === 'user' ? 'user' : 'ai';
+            // 头像
+            let avatarHtml = '';
+            if (sender === "ai") {
+                if (roleAvatarUrl) {
+                    avatarHtml = `<div class="avatar ${showAvatar ? '' : 'hidden'}" style="background-image: url('${escapeHtml(roleAvatarUrl)}'); background-size: cover;"></div>`;
+                } else {
+                    avatarHtml = `<div class="avatar ${showAvatar ? '' : 'hidden'}">🤖</div>`;
+                }
+            } else {
+                if (userAvatarUrl) {
+                    avatarHtml = `<div class="avatar ${showAvatar ? '' : 'hidden'}" style="background-image: url('${escapeHtml(userAvatarUrl)}'); background-size: cover;"></div>`;
+                } else {
+                    avatarHtml = `<div class="avatar ${showAvatar ? '' : 'hidden'}">👤</div>`;
+                }
+            }
+            // 消息内容
             let contentHtml = '';
             if (msg.type === 'image') {
                 contentHtml = `<div class="image-message">
@@ -1475,29 +1915,63 @@
             } else {
                 contentHtml = `<div>${escapeHtml(msg.content)}</div>`;
             }
-            html += `<div class="message ${msgClass}" data-id="${msg.id}" data-role="${msg.role}" data-content="${escapeHtml(msg.content)}" data-type="${msg.type || 'text'}" data-image-url="${msg.imageUrl || ''}" style="position:relative;">
-                        ${checkboxHtml}
-                        ${contentHtml}
-                        ${msg.role === 'ai' ? `<div class="regenerate-icon" data-id="${msg.id}">↻</div>` : ''}
-                        ${versionHtml}
-                    </div>`;
+            // 版本指示器（仅AI）
+            let versionHtml = '';
+            if (msg.role === 'ai' && msg.versions && msg.versions.length > 1) {
+                let idx = msg.currentVersionIndex !== undefined ? msg.currentVersionIndex : 0;
+                versionHtml = `<div class="version-indicator" data-id="${msg.id}"><span class="version-arrow" data-id="${msg.id}" data-delta="-1">‹</span>${idx + 1}/${msg.versions.length}<span class="version-arrow" data-id="${msg.id}" data-delta="1">›</span></div>`;
+            }
+            let regenHtml = msg.role === 'ai' ? `<div class="regenerate-icon" data-id="${msg.id}">↻</div>` : '';
+            // 多选复选框
+            let checkboxHtml = '';
+            if (multiSelectMode) {
+                const isChecked = selectedMsgIds.has(msg.id);
+                checkboxHtml = `<div class="message-checkbox ${isChecked ? 'checked' : ''}" data-id="${msg.id}"></div>`;
+            }
+            // 构建行
+            if (sender === "user") {
+                html += `<div class="message-row user" data-msg-id="${msg.id}" data-role="user" style="position: relative;">
+                            ${checkboxHtml}
+                            <div class="message user" data-id="${msg.id}" data-content="${escapeHtml(msg.content)}" data-type="${msg.type || 'text'}" data-image-url="${msg.imageUrl || ''}">
+                                ${contentHtml}
+                                ${regenHtml}
+                                ${versionHtml}
+                            </div>
+                            ${avatarHtml}
+                        </div>`;
+            } else {
+                html += `<div class="message-row ai" data-msg-id="${msg.id}" data-role="ai" style="position: relative;">
+                            ${checkboxHtml}
+                            ${avatarHtml}
+                            <div class="message ai" data-id="${msg.id}" data-content="${escapeHtml(msg.content)}" data-type="${msg.type || 'text'}" data-image-url="${msg.imageUrl || ''}">
+                                ${contentHtml}
+                                ${regenHtml}
+                                ${versionHtml}
+                            </div>
+                        </div>`;
+            }
         }
         container.innerHTML = html;
+        // 绑定事件
         document.querySelectorAll('.regenerate-icon').forEach(icon => icon.onclick = (e) => { e.stopPropagation(); regenerateAiMessage(parseInt(icon.dataset.id)); });
         document.querySelectorAll('.version-arrow').forEach(arrow => arrow.onclick = (e) => { e.stopPropagation(); switchVersion(parseInt(arrow.dataset.id), parseInt(arrow.dataset.delta)); });
-        document.querySelectorAll('.message-checkbox').forEach(chk => chk.onclick = (e) => { e.stopPropagation(); toggleSelectMessage(parseInt(chk.dataset.id)); });
-        if (!multiSelectMode) {
-            document.querySelectorAll('.message').forEach(el => {
-                let id = parseInt(el.dataset.id);
-                let role = el.dataset.role;
-                let content = el.dataset.content;
-                let type = el.dataset.type;
-                let imageUrl = el.dataset.imageUrl;
-                el.addEventListener('contextmenu', (e) => { e.preventDefault(); showContextMenu(e, id, role, content, type, imageUrl); });
+        if (multiSelectMode) {
+            document.querySelectorAll('.message-checkbox').forEach(chk => chk.onclick = (e) => { e.stopPropagation(); toggleSelectMessage(parseInt(chk.dataset.id)); });
+        } else {
+            // 非多选模式：绑定长按菜单
+            document.querySelectorAll('.message-row').forEach(row => {
+                const msgDiv = row.querySelector('.message');
+                if (!msgDiv) return;
+                const msgId = parseInt(row.dataset.msgId);
+                const role = row.dataset.role;
+                const content = msgDiv.dataset.content;
+                const type = msgDiv.dataset.type;
+                const imageUrl = msgDiv.dataset.imageUrl;
+                row.addEventListener('contextmenu', (e) => { e.preventDefault(); showContextMenu(e, msgId, role, content, type, imageUrl); });
                 let timer = null;
-                el.addEventListener('touchstart', (e) => { timer = setTimeout(() => showContextMenu(e.touches[0], id, role, content, type, imageUrl), 500); });
-                el.addEventListener('touchend', () => clearTimeout(timer));
-                el.addEventListener('touchmove', () => clearTimeout(timer));
+                row.addEventListener('touchstart', (e) => { timer = setTimeout(() => showContextMenu(e.touches[0], msgId, role, content, type, imageUrl), 500); });
+                row.addEventListener('touchend', () => clearTimeout(timer));
+                row.addEventListener('touchmove', () => clearTimeout(timer));
             });
         }
         scrollChatBottom();
@@ -1529,7 +2003,7 @@
                 menu.remove();
             } },
             { icon: "🧠", label: "记忆", action: () => { summarizeLongTermMemory(false); menu.remove(); } },
-            { icon: "🗑️", label: "删除", action: () => { deleteMessageById(msgId); menu.remove(); } }
+            { icon: "🗑️", label: "删除", action: () => { enterMultiSelectMode(msgId); menu.remove(); } }  // 改为进入多选模式
         ];
         if (type === "image" && imageUrl) {
             actions.splice(2, 0, { icon: "🖼️", label: "重新生成描述", action: async () => { await regenerateImageDescription(msgId); menu.remove(); } });
@@ -1545,70 +2019,7 @@
         setTimeout(() => document.addEventListener("click", remove), 10);
     }
 
-    // 多选删除
-    function enterMultiSelectMode(defaultId = null) {
-        multiSelectMode = true;
-        selectedMsgIds.clear();
-        if (defaultId) selectedMsgIds.add(defaultId);
-        renderChat();
-        let bar = document.createElement("div");
-        bar.id = "multiSelectBar";
-        bar.className = "multi-select-bar";
-        bar.innerHTML = `<span>已选择 <span id="selectedCount">${selectedMsgIds.size}</span> 条消息</span><div><button id="cancelMultiSelectBtn">取消</button><button id="confirmDeleteBtn" class="danger-btn" style="margin-left:12px;">删除选中</button></div>`;
-        document.body.appendChild(bar);
-        document.getElementById("cancelMultiSelectBtn").onclick = exitMultiSelectMode;
-        document.getElementById("confirmDeleteBtn").onclick = confirmDeleteSelected;
-    }
-    function exitMultiSelectMode() {
-        multiSelectMode = false;
-        selectedMsgIds.clear();
-        let bar = document.getElementById("multiSelectBar");
-        if (bar) bar.remove();
-        renderChat();
-    }
-    function toggleSelectMessage(id) {
-        if (selectedMsgIds.has(id)) selectedMsgIds.delete(id);
-        else selectedMsgIds.add(id);
-        let span = document.getElementById("selectedCount");
-        if (span) span.innerText = selectedMsgIds.size;
-        renderChat();
-    }
-    async function confirmDeleteSelected() {
-        if (selectedMsgIds.size === 0) return;
-        let data = getCurrentData();
-        let all = data.messages;
-        let indices = [];
-        for (let i = 0; i < all.length; i++) if (selectedMsgIds.has(all[i].id)) indices.push(i);
-        if (indices.length === 0) return;
-        let firstUserIdx = -1;
-        for (let idx of indices) if (all[idx].role === "user") { firstUserIdx = idx; break; }
-        if (firstUserIdx !== -1) {
-            if (!confirm("删除用户消息将同时删除其后的所有对话，是否继续？")) return;
-            data.messages = all.slice(0, firstUserIdx);
-        } else {
-            let newMsgs = [];
-            for (let i = 0; i < all.length; i++) if (!selectedMsgIds.has(all[i].id)) newMsgs.push(all[i]);
-            data.messages = newMsgs;
-        }
-        saveAll();
-        exitMultiSelectMode();
-        renderChat();
-        let newData = getCurrentData();
-        if (newData.messages.length && newData.messages[newData.messages.length - 1].role === "user") {
-            if (!isWaitingForAI) {
-                showToast("自动生成回复...");
-                isWaitingForAI = true;
-                try {
-                    let bubbles = await callDeepSeekBubbles(null, newData.messages, "");
-                    await addAiBubblesSequentially(bubbles);
-                } catch (e) { showToast("自动生成失败"); }
-                finally { isWaitingForAI = false; }
-            }
-        }
-    }
-
-    // 主动消息（与原版相同）
-    let lastUserMessageTime = Date.now();
+    // 主动消息
     function getSilenceDuration(text) {
         const keywords = {
             "晚安": 8*60, "睡觉": 8*60,
@@ -1710,7 +2121,8 @@ ${memoryBlock}
         }
         if (active.sentToday >= active.dailyLimit) return;
         if (active.consecutiveNoReply >= active.stopThreshold) return;
-        let minutesSinceLastUser = (now - lastUserMessageTime) / 60000;
+        let lastUserTime = active.lastUserMsgTime || lastUserMessageTime;
+        let minutesSinceLastUser = (now - lastUserTime) / 60000;
         if (active.activeInterval > 0 && minutesSinceLastUser < active.activeInterval) return;
         let lastUserMsg = data.messages.slice().reverse().find(m => m.role === "user");
         if (lastUserMsg) {
@@ -1795,28 +2207,214 @@ ${memoryBlock}
         }
     }
 
-    // 角色管理函数（与原版相同）
+    // ================== 聊天记录搜索功能 ==================
+    function openSearchModal() {
+        document.getElementById("searchModal").style.display = "flex";
+        const input = document.getElementById("searchKeywordInput");
+        input.value = "";
+        input.focus();
+        document.getElementById("searchResultsContainer").innerHTML = '<div class="no-result">输入关键词开始搜索</div>';
+        document.getElementById("searchStats").innerHTML = "";
+    }
+    function closeSearchModal() {
+        document.getElementById("searchModal").style.display = "none";
+    }
+    function performSearch(keyword) {
+        const container = document.getElementById("searchResultsContainer");
+        const statsDiv = document.getElementById("searchStats");
+        if (!keyword.trim()) {
+            container.innerHTML = '<div class="no-result">输入关键词开始搜索</div>';
+            statsDiv.innerHTML = "";
+            return;
+        }
+        const data = getCurrentData();
+        const messages = data.messages || [];
+        const lowerKeyword = keyword.toLowerCase();
+        const results = [];
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
+            const content = msg.content || "";
+            if (content.toLowerCase().includes(lowerKeyword)) {
+                results.push({ index: i, msg });
+            }
+        }
+        if (results.length === 0) {
+            container.innerHTML = '<div class="no-result">未找到相关消息</div>';
+            statsDiv.innerHTML = "共 0 条";
+            return;
+        }
+        statsDiv.innerHTML = `共 ${results.length} 条结果`;
+        let html = "";
+        for (let res of results) {
+            const msg = res.msg;
+            const roleLabel = msg.role === "user" ? "我" : currentRole;
+            const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : "未知时间";
+            let preview = msg.content;
+            const regex = new RegExp(`(${escapeRegex(keyword)})`, "gi");
+            preview = preview.replace(regex, `<mark>$1</mark>`);
+            html += `
+                <div class="search-result-item" data-msg-id="${msg.id}" data-msg-index="${res.index}">
+                    <div class="result-preview">${preview}</div>
+                    <div class="result-meta">
+                        <span>${roleLabel}</span>
+                        <span>${timestamp}</span>
+                    </div>
+                </div>
+            `;
+        }
+        container.innerHTML = html;
+        document.querySelectorAll(".search-result-item").forEach(el => {
+            el.addEventListener("click", (e) => {
+                const msgId = parseInt(el.dataset.msgId);
+                jumpToMessage(msgId);
+                closeSearchModal();
+            });
+        });
+    }
+    function escapeRegex(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    function jumpToMessage(msgId) {
+        const targetElement = document.querySelector(`.message-row[data-msg-id="${msgId}"]`);
+        if (targetElement) {
+            targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+            const msgDiv = targetElement.querySelector('.message');
+            if (msgDiv) {
+                msgDiv.classList.add("message-highlight");
+                setTimeout(() => msgDiv.classList.remove("message-highlight"), 2000);
+            }
+        } else {
+            renderChat();
+            setTimeout(() => {
+                const el = document.querySelector(`.message-row[data-msg-id="${msgId}"]`);
+                if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    const msgDiv = el.querySelector('.message');
+                    if (msgDiv) {
+                        msgDiv.classList.add("message-highlight");
+                        setTimeout(() => msgDiv.classList.remove("message-highlight"), 2000);
+                    }
+                } else {
+                    showToast("消息定位失败");
+                }
+            }, 100);
+        }
+    }
+
+    // ================== 角色下拉菜单 ==================
+    function updateRoleDropdownMenu() {
+        const menu = document.getElementById("roleDropdownMenu");
+        if (!menu) return;
+        let html = "";
+        for (let role of roles) {
+            const avatar = (roleData[role] && roleData[role].avatar) || "";
+            const activeClass = role === currentRole ? "active" : "";
+            html += `<div class="role-dropdown-item ${activeClass}" data-role="${role}">
+                        <div class="role-dropdown-avatar" style="background-image: url('${avatar}'); background-size: cover; background-position: center;">${avatar ? '' : '🤖'}</div>
+                        <span>${escapeHtml(role)}</span>
+                    </div>`;
+        }
+        menu.innerHTML = html;
+        document.querySelectorAll(".role-dropdown-item").forEach(item => {
+            item.addEventListener("click", (e) => {
+                const newRole = item.dataset.role;
+                if (newRole && newRole !== currentRole) {
+                    currentRole = newRole;
+                    saveAll();
+                    let newData = getCurrentData();
+                    if (newData.activeMsg && newData.activeMsg.lastUserMsgTime) {
+                        lastUserMessageTime = newData.activeMsg.lastUserMsgTime;
+                    } else {
+                        lastUserMessageTime = Date.now();
+                    }
+                    restartActiveMsgTimer();
+                    updateChatBackground();
+                    renderChat();
+                    updateLocationAuto();
+                    renderLocationPage();
+                    updateRoleDisplay();
+                    updateRoleDropdownMenu();
+                }
+                menu.style.display = "none";
+            });
+        });
+    }
+    function toggleRoleDropdown() {
+        const menu = document.getElementById("roleDropdownMenu");
+        if (menu.style.display === "none" || menu.style.display === "") {
+            updateRoleDropdownMenu();
+            menu.style.display = "block";
+            const closeHandler = (e) => {
+                if (!menu.contains(e.target) && e.target.id !== "roleDropdownBtn") {
+                    menu.style.display = "none";
+                    document.removeEventListener("click", closeHandler);
+                }
+            };
+            setTimeout(() => document.addEventListener("click", closeHandler), 10);
+        } else {
+            menu.style.display = "none";
+        }
+    }
+
+    function updateChatBackground() {
+        const data = getCurrentData();
+        const bg = data.chatBackground || globalWallpaper;
+        if (bg) {
+            document.getElementById("wallpaperBg").style.backgroundImage = `url(${bg})`;
+        } else {
+            document.getElementById("wallpaperBg").style.backgroundImage = "url('https://picsum.photos/id/104/800/1200')";
+        }
+    }
+
+    // 角色管理函数
     function renderRolesList() {
         let container = document.getElementById("rolesListContainer");
         if (!container) return;
         container.innerHTML = roles.map(role => {
-            let data = roleData[role] || { avatar: "😊" };
+            let data = roleData[role] || { avatar: "" };
+            let avatarHtml = data.avatar ? `<img class="role-avatar" src="${data.avatar}">` : `<div class="role-avatar">😊</div>`;
             return `<div class="role-card" data-role="${role}">
-                <div class="role-avatar">${data.avatar || "😊"}</div>
-                <div class="role-info"><div class="role-name">${escapeHtml(role)}</div></div>
-                <button class="edit-role-btn" data-role="${role}">编辑</button>
-            </div>`;
+                        ${avatarHtml}
+                        <div class="role-info"><div class="role-name">${escapeHtml(role)}</div></div>
+                        <button class="edit-role-btn" data-role="${role}">编辑</button>
+                    </div>`;
         }).join('');
         document.querySelectorAll('.edit-role-btn').forEach(btn => btn.onclick = () => openRoleDetail(btn.dataset.role));
     }
     function openRoleDetail(roleName) {
         currentEditRole = roleName;
         document.getElementById("roleDetailTitle").innerText = `编辑 ${roleName}`;
-        let data = roleData[roleName] || { avatar: "😊", persona: "", longMemories: [], memoryFacts: [], worldbook: {人物:[],地点:[],世界观:[],自定义:[]}, userPersona: "" };
+        let data = roleData[roleName] || { avatar: "", userAvatar: "", chatBackground: "", persona: "", longMemories: [], memoryFacts: [], worldbook: {人物:[],地点:[],世界观:[],自定义:[]}, userPersona: "" };
         document.getElementById("editRoleName").value = roleName;
-        document.getElementById("editRoleAvatar").value = data.avatar || "😊";
         document.getElementById("editPersonaPrompt").value = data.persona || "";
         document.getElementById("editUserPersona").value = data.userPersona || "";
+        const roleAvatarPreview = document.getElementById("roleAvatarPreview");
+        if (roleAvatarPreview) {
+            if (data.avatar) {
+                roleAvatarPreview.style.backgroundImage = `url(${data.avatar})`;
+                roleAvatarPreview.style.backgroundSize = "cover";
+                roleAvatarPreview.innerText = "";
+            } else {
+                roleAvatarPreview.style.backgroundImage = "";
+                roleAvatarPreview.innerText = "😊";
+                roleAvatarPreview.style.fontSize = "40px";
+                roleAvatarPreview.style.display = "flex";
+                roleAvatarPreview.style.alignItems = "center";
+                roleAvatarPreview.style.justifyContent = "center";
+            }
+        }
+        const userAvatarPreview = document.getElementById("userAvatarPreview");
+        if (userAvatarPreview) {
+            if (data.userAvatar) {
+                userAvatarPreview.style.backgroundImage = `url(${data.userAvatar})`;
+                userAvatarPreview.style.backgroundSize = "cover";
+                userAvatarPreview.innerText = "";
+            } else {
+                userAvatarPreview.style.backgroundImage = "";
+                userAvatarPreview.innerText = "👤";
+                userAvatarPreview.style.fontSize = "40px";
+            }
+        }
         renderEditMemoryFacts();
         renderEditWorldbook();
         document.getElementById("rolesPage").style.display = "none";
@@ -1860,7 +2458,6 @@ ${memoryBlock}
     }
     function saveCurrentRoleDetail() {
         let newName = document.getElementById("editRoleName").value.trim();
-        let avatar = document.getElementById("editRoleAvatar").value;
         let persona = document.getElementById("editPersonaPrompt").value;
         let userPersona = document.getElementById("editUserPersona").value;
         if(!roleData[currentEditRole]) roleData[currentEditRole] = {};
@@ -1872,12 +2469,12 @@ ${memoryBlock}
             currentEditRole = newName;
             if(currentRole === currentEditRole) currentRole = newName;
         }
-        roleData[currentEditRole].avatar = avatar;
         roleData[currentEditRole].persona = persona;
         roleData[currentEditRole].userPersona = userPersona;
         saveAll();
         showToast("已保存");
-        refreshRoleSelects();
+        updateRoleDropdownMenu();
+        updateRoleDisplay();
         renderRolesList();
     }
     function deleteCurrentRole() {
@@ -1888,7 +2485,8 @@ ${memoryBlock}
             delete roleData[currentEditRole];
             if(currentRole === currentEditRole) currentRole = roles[0];
             saveAll();
-            refreshRoleSelects();
+            updateRoleDropdownMenu();
+            updateRoleDisplay();
             renderRolesList();
             document.getElementById("roleDetailPage").style.display = "none";
             document.getElementById("rolesPage").style.display = "flex";
@@ -1899,9 +2497,9 @@ ${memoryBlock}
         let newName = prompt("新角色名");
         if(newName && !roles.includes(newName)) {
             roles.push(newName);
-            roleData[newName] = { messages: [], location: "家中卧室", schedule: { today: [], tomorrow: [] }, longMemories: [], memoryFacts: [], worldbook: {人物:[],地点:[],世界观:[],自定义:[]}, persona: `你叫${newName}，自然聊天，短句回复。`, avatar: "😊", userPersona: "", params: { contextRange: "20", temperature: 0.7, topP: 0.8, maxTokens: 1024, autoMemEnable: false, autoMemInterval: 30 }, msgSinceLastSummary: 0, activeMsg: { enabled: false, dailyLimit: 10, stopThreshold: 5, activeInterval: 90, pollInterval: 15, sentToday: 0, lastCheckDate: new Date().toDateString(), consecutiveNoReply: 0 } };
+            roleData[newName] = { messages: [], location: "家中卧室", schedule: { today: [], tomorrow: [] }, longMemories: [], memoryFacts: [], worldbook: {人物:[],地点:[],世界观:[],自定义:[]}, persona: `你叫${newName}，自然聊天，短句回复。`, avatar: "", userAvatar: "", chatBackground: "", userPersona: "", params: { contextRange: "20", temperature: 0.7, topP: 0.8, maxTokens: 1024, autoMemEnable: false, autoMemInterval: 30 }, msgSinceLastSummary: 0, activeMsg: { enabled: false, dailyLimit: 10, stopThreshold: 5, activeInterval: 90, pollInterval: 15, sentToday: 0, lastCheckDate: new Date().toDateString(), consecutiveNoReply: 0, lastUserMsgTime: Date.now() } };
             saveAll();
-            refreshRoleSelects();
+            updateRoleDropdownMenu();
             renderRolesList();
             showToast(`已添加 ${newName}`);
         }
@@ -1951,22 +2549,15 @@ ${memoryBlock}
         document.getElementById("roleParamsModal").style.display = "flex";
     }
 
-    // 导入导出（简化）
+    // 导入导出
     async function importChatBoxData(file) { showToast("功能开发中"); }
     function exportToChatBox() { showToast("功能开发中"); }
     function exportChat() { showToast("功能开发中"); }
     function exportPersona() { showToast("功能开发中"); }
     function importPersona() { showToast("功能开发中"); }
-    function backupAll() { let backup={ roles, roleData, lastActiveDate, activeMsgCountToday }; download(JSON.stringify(backup), "backup.json", "application/json"); }
-    function restoreAll(file) { let reader=new FileReader(); reader.onload=e=>{ let d=JSON.parse(e.target.result); if(d.roles && d.roleData) { roles=d.roles; roleData=d.roleData; location.reload(); } }; if(file) reader.readAsText(file); }
+    function backupAll() { let backup={ roles, roleData, lastActiveDate, activeMsgCountToday, globalWallpaper }; download(JSON.stringify(backup), "backup.json", "application/json"); }
+    function restoreAll(file) { let reader=new FileReader(); reader.onload=e=>{ let d=JSON.parse(e.target.result); if(d.roles && d.roleData) { roles=d.roles; roleData=d.roleData; globalWallpaper=d.globalWallpaper||""; location.reload(); } }; if(file) reader.readAsText(file); }
     function resetAll() { if(confirm("重置所有数据？不可恢复")){ localStorage.clear(); location.reload(); } }
-    function refreshRoleSelects() {
-        let sel = document.getElementById("chatRoleSelect");
-        if(sel) {
-            sel.innerHTML = roles.map(r=>`<option ${r===currentRole?"selected":""}>${escapeHtml(r)}</option>`).join('');
-            sel.onchange = () => { currentRole = sel.value; saveAll(); renderChat(); updateLocationAuto(); renderLocationPage(); updateRoleDisplay(); };
-        }
-    }
     function updateRoleDisplay() {
         let displayElem = document.getElementById("roleDisplay");
         if (displayElem) displayElem.innerText = currentRole;
@@ -1974,7 +2565,7 @@ ${memoryBlock}
     function showPage(pageId) {
         document.querySelectorAll('.page').forEach(p=>p.style.display='none');
         document.getElementById(pageId).style.display = 'flex';
-        if(pageId === 'chatPage') { refreshRoleSelects(); renderChat(); updateLocationAuto(); updateRoleDisplay(); }
+        if(pageId === 'chatPage') { updateChatBackground(); renderChat(); updateLocationAuto(); updateRoleDisplay(); }
         if(pageId === 'locationPage') { updateLocationAuto(); renderLocationPage(); }
         if(pageId === 'rolesPage') renderRolesList();
         if(pageId === 'hotPage') fetchHotNews();
@@ -1992,6 +2583,24 @@ ${memoryBlock}
         const activeMsgDiv = document.getElementById("activeMsgCollapsible");
         if (autoMemCheck && autoMemDiv) autoMemCheck.addEventListener("change", () => autoMemDiv.classList.toggle("hidden", !autoMemCheck.checked));
         if (activeMsgCheck && activeMsgDiv) activeMsgCheck.addEventListener("change", () => activeMsgDiv.classList.toggle("hidden", !activeMsgCheck.checked));
+    }
+
+    // 图片上传处理函数
+    function handleImageUpload(callback) {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.onchange = async (e) => {
+            if (e.target.files.length) {
+                try {
+                    const dataUrl = await compressAndUpload(e.target.files[0], 300, 0.7);
+                    callback(dataUrl);
+                } catch (err) {
+                    showToast("图片处理失败");
+                }
+            }
+        };
+        input.click();
     }
 
     // 事件绑定
@@ -2064,10 +2673,109 @@ ${memoryBlock}
         };
         input.click();
     };
+    // 搜索相关
+    document.getElementById("searchChatBtn").onclick = openSearchModal;
+    document.getElementById("closeSearchModalBtn").onclick = closeSearchModal;
+    document.getElementById("searchKeywordInput").addEventListener("input", (e) => performSearch(e.target.value));
+    document.getElementById("searchModal").addEventListener("click", (e) => {
+        if (e.target === document.getElementById("searchModal")) closeSearchModal();
+    });
+    // 角色下拉
+    document.getElementById("roleDropdownBtn").onclick = toggleRoleDropdown;
+
+    // 全局壁纸上传
+    document.getElementById("uploadGlobalWallpaperBtn").onclick = () => {
+        handleImageUpload((dataUrl) => {
+            globalWallpaper = dataUrl;
+            document.getElementById("wallpaperBg").style.backgroundImage = `url(${globalWallpaper})`;
+            saveAll();
+            showToast("全局背景已更新");
+        });
+    };
+    document.getElementById("resetGlobalWallpaperBtn").onclick = () => {
+        globalWallpaper = "";
+        document.getElementById("wallpaperBg").style.backgroundImage = "url('https://picsum.photos/id/104/800/1200')";
+        saveAll();
+        showToast("已重置默认背景");
+    };
+    // 角色头像上传
+    document.getElementById("uploadRoleAvatarBtn").onclick = () => {
+        if (!currentEditRole) return;
+        handleImageUpload((dataUrl) => {
+            roleData[currentEditRole].avatar = dataUrl;
+            saveAll();
+            const preview = document.getElementById("roleAvatarPreview");
+            if (preview) {
+                preview.style.backgroundImage = `url(${dataUrl})`;
+                preview.style.backgroundSize = "cover";
+                preview.innerText = "";
+            }
+            showToast("角色头像已更新");
+        });
+    };
+    document.getElementById("resetRoleAvatarBtn").onclick = () => {
+        if (!currentEditRole) return;
+        roleData[currentEditRole].avatar = "";
+        saveAll();
+        const preview = document.getElementById("roleAvatarPreview");
+        if (preview) {
+            preview.style.backgroundImage = "";
+            preview.innerText = "😊";
+            preview.style.fontSize = "40px";
+        }
+        showToast("已重置为默认头像");
+    };
+    // 用户头像上传
+    document.getElementById("uploadUserAvatarBtn").onclick = () => {
+        if (!currentEditRole) return;
+        handleImageUpload((dataUrl) => {
+            roleData[currentEditRole].userAvatar = dataUrl;
+            saveAll();
+            const preview = document.getElementById("userAvatarPreview");
+            if (preview) {
+                preview.style.backgroundImage = `url(${dataUrl})`;
+                preview.style.backgroundSize = "cover";
+                preview.innerText = "";
+            }
+            showToast("用户头像已更新");
+        });
+    };
+    document.getElementById("resetUserAvatarBtn").onclick = () => {
+        if (!currentEditRole) return;
+        roleData[currentEditRole].userAvatar = "";
+        saveAll();
+        const preview = document.getElementById("userAvatarPreview");
+        if (preview) {
+            preview.style.backgroundImage = "";
+            preview.innerText = "👤";
+            preview.style.fontSize = "40px";
+        }
+        showToast("已重置为默认头像");
+    };
+    // 角色聊天背景上传
+    document.getElementById("uploadRoleBgBtn").onclick = () => {
+        if (!currentEditRole) return;
+        handleImageUpload((dataUrl) => {
+            roleData[currentEditRole].chatBackground = dataUrl;
+            saveAll();
+            if (currentRole === currentEditRole) {
+                updateChatBackground();
+            }
+            showToast("角色聊天背景已更新");
+        });
+    };
+    document.getElementById("resetRoleBgBtn").onclick = () => {
+        if (!currentEditRole) return;
+        roleData[currentEditRole].chatBackground = "";
+        saveAll();
+        if (currentRole === currentEditRole) {
+            updateChatBackground();
+        }
+        showToast("已重置为全局背景");
+    };
 
     // 启动
     loadAll();
-    refreshRoleSelects();
     loadApiSettingsUI();
     updateLocationAuto();
     generateTodaySchedule();
