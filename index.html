@@ -180,7 +180,10 @@
             text-align: center;
             line-height: 28px;
         }
-        .chat-messages.multi-select-active { padding-left: 40px; }
+        /* 多选模式下的聊天容器偏移 */
+        .chat-messages.multi-select-active {
+            padding-left: 40px;
+        }
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -202,6 +205,7 @@
             margin: 8px auto;
             line-height: 1.4;
         }
+        /* 消息行 - 必须设置 position: relative 以便复选框绝对定位 */
         .message-row {
             display: flex;
             align-items: flex-start;
@@ -247,6 +251,29 @@
             background: transparent !important;
             padding: 0 !important;
             box-shadow: none !important;
+        }
+        /* 多选复选框 - 固定在最左边，相对于 .message-row 绝对定位 */
+        .message-checkbox {
+            position: absolute;
+            left: -28px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            border: 2px solid #888;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 15;
+        }
+        .message-checkbox.checked::after {
+            content: "✓";
+            color: #007aff;
+            font-size: 14px;
+            font-weight: bold;
         }
         .ai-buttons {
             display: flex;
@@ -692,7 +719,7 @@
     <div id="homePage" class="page home-page active">
         <div class="bubble large" data-page="chat">💬 聊天</div>
         <div class="bubble small" data-page="location">📍 地点</div>
-        <div class="bubble small" data-page="roles">🎭 角色</div>
+        <div class="bubble small" data-page="roles">🧑‍🎤 角色</div>
         <div class="bubble small" data-page="hot">🔥 热点</div>
         <div class="bubble small" data-page="settings">⚙️ 设置</div>
         <div class="bubble small" data-page="debugLog">❓ 日志</div>
@@ -725,7 +752,7 @@
         </div>
     </div>
     <div id="rolesPage" class="page">
-        <div class="header"><button class="back-home" data-home>←</button><div class="page-title">🎭 角色管理</div><button id="addRoleListBtn" class="icon-btn">+</button></div>
+        <div class="header"><button class="back-home" data-home>←</button><div class="page-title">🧑‍🎤 角色管理</div><button id="addRoleListBtn" class="icon-btn">+</button></div>
         <div id="rolesListContainer"></div>
     </div>
     <div id="roleDetailPage" class="page" style="display:none;">
@@ -786,7 +813,12 @@
         <div class="card-list"><h4>🧠 副模型（记忆总结专用）</h4><div class="setting-row"><label><input type="checkbox" id="secondaryApiEnabled"> 启用副模型（记忆总结优先使用）</label></div><div id="secondaryApiSettings" style="display: none;"><div class="setting-row"><label>API Key</label><input type="password" id="secondaryApiKey" placeholder="可选，留空则使用主模型Key"></div><div class="setting-row"><label>Base URL</label><input id="secondaryBaseUrl" placeholder="https://api.deepseek.com/v1"></div><div class="setting-row"><label>模型名称</label><input id="secondaryModelName" placeholder="deepseek-chat"></div><div class="setting-row"><label>Temperature</label><input id="secondaryTemperature" type="number" step="0.1" value="0.3"></div><div class="setting-row"><label>Max Tokens</label><input id="secondaryMaxTokens" type="number" value="800"></div><button id="saveSecondarySettingsBtn" class="small-btn">保存副模型设置</button></div></div>
         <div class="card-list"><h4>📷 识图功能</h4><div class="setting-row"><label><input type="checkbox" id="visionApiEnabled"> 启用识图（上传图片并获取描述）</label></div><div id="visionApiSettings" style="display: none;"><div class="setting-row"><label>视觉模型 API Key</label><input type="password" id="visionApiKey" placeholder="智谱 API Key"></div><div class="setting-row"><label>模型名称</label><input id="visionModel" value="glm-4.6v-flash"></div><div class="setting-row"><label>Cloudinary Cloud Name</label><input id="cloudName" value="dyuoqc5pz"></div><div class="setting-row"><label>Cloudinary Upload Preset</label><input id="uploadPreset" value="dobby_unsigned_preset"></div><button id="saveVisionSettingsBtn" class="small-btn">保存识图设置</button></div></div>
         <div class="card-list"><h4>🎨 主页背景图</h4><div class="flex-between"><button id="uploadGlobalWallpaperBtn" style="background:#34c759;">📷 上传背景图</button><button id="resetGlobalWallpaperBtn" style="background:#555;">重置默认</button></div></div>
-        <div class="card-list"><h4>📦 导入/导出</h4><div class="flex-between"><button id="exportChatBtn">导出聊天记录</button><button id="exportPersonaBtn">导出人设</button></div><div class="flex-between"><button id="importPersonaBtn">导入人设</button><button id="importChatBoxBtn" style="background:#34c759;">📥 从 ChatBox 导入</button></div><div class="flex-between"><button id="exportChatBoxBtn" style="background:#34c759;">📤 导出为 ChatBox 格式</button><button id="backupAllBtn">全量备份</button><button id="restoreAllBtn">恢复备份</button></div><button id="resetDataBtn" class="danger-btn">重置全部数据</button></div>
+        <div class="card-list"><h4>📦 导入/导出</h4>
+            <div class="flex-between"><button id="exportChatBtn">导出聊天记录</button><button id="exportPersonaBtn">导出人设</button></div>
+            <div class="flex-between"><button id="importPersonaBtn">导入人设</button><button id="importChatBoxBtn" style="background:#34c759;">📥 从 ChatBox 导入</button></div>
+            <div class="flex-between"><button id="exportChatBoxBtn" style="background:#34c759;">📤 导出为 ChatBox 格式</button><button id="backupAllBtn">全量备份</button><button id="restoreAllBtn">恢复备份</button></div>
+            <button id="resetDataBtn" class="danger-btn">重置全部数据</button>
+        </div>
     </div>
     <div id="debugLogPage" class="page debug-log-page">
         <div class="header"><button class="back-home" data-home>←</button><div class="page-title">❓ 调试日志</div></div>
@@ -1088,7 +1120,7 @@
     async function sendImageMessage(file) { if (!visionSettings.enabled || !visionSettings.apiKey) { showToast("未启用识图功能或缺少API Key"); return; } showToast("处理图片中..."); try { const compressedBlob = await compressImage(file); const imageUrl = await uploadToCloudinary(compressedBlob); const description = await describeImageWithGLM(imageUrl); if (!description) throw new Error("识别结果为空"); let data = getCurrentData(); let imageMsg = { id: Date.now(), role: "user", type: "image", content: description, imageUrl: imageUrl, timestamp: Date.now(), hasPrefix: true, apiContent: description }; data.messages.push(imageMsg); saveAll(); renderChat(); await autoGenerateReplyForImage(description); } catch (err) { console.error(err); showToast("图片处理失败: " + err.message); } }
     async function regenerateImageDescription(msgId) { let data = getCurrentData(); let msg = data.messages.find(m => m.id === msgId); if (!msg || msg.type !== "image") return; showToast("重新生成描述中..."); try { const newDescription = await describeImageWithGLM(msg.imageUrl); if (!newDescription) throw new Error("识别失败"); msg.content = newDescription; saveAll(); renderChat(); showToast("描述已更新"); } catch (err) { showToast("重新生成失败: " + err.message); } }
 
-    // 原始重新生成逻辑：只生成一条回复，并删除后续所有消息
+    // 原始重新生成逻辑 + 增加多样性提示
     async function regenerateAiMessage(msgId) {
         let data = getCurrentData();
         let idx = data.messages.findIndex(m => m.id === msgId && m.role === "ai");
@@ -1103,7 +1135,7 @@
         isWaitingForAI = true;
         showToast("重新生成中...");
         try {
-            let bubbles = await callDeepSeekBubbles(null, apiHistory, "");
+            let bubbles = await callDeepSeekBubbles(null, apiHistory, "\n请用不同的表达方式重新回答，不要重复之前的内容。");
             if (!bubbles.length) throw new Error("生成空回复");
             let newContent = bubbles[0];
             if (!msg.versions) msg.versions = [msg.content];
@@ -1111,7 +1143,6 @@
             if (msg.versions.length > MAX_VERSIONS) msg.versions.shift();
             msg.currentVersionIndex = msg.versions.length - 1;
             msg.content = newContent;
-            // 删除该消息之后的所有消息
             data.messages = data.messages.slice(0, idx + 1);
             saveAll();
             renderChat();
@@ -1175,11 +1206,131 @@
     function saveRoleParamsFromModal() { let data = getCurrentData(); data.params.contextRange = document.getElementById("paramContextRange").value; data.params.temperature = parseFloat(document.getElementById("paramTemp").value); data.params.topP = parseFloat(document.getElementById("paramTopP").value); data.params.maxTokens = parseInt(document.getElementById("paramMaxTokens").value); data.params.autoMemEnable = document.getElementById("autoMemEnable").checked; data.params.autoMemInterval = parseInt(document.getElementById("autoMemInterval").value); let a = data.activeMsg; a.enabled = document.getElementById("activeMsgEnable").checked; a.dailyLimit = parseInt(document.getElementById("dailyLimit").value); a.stopThreshold = parseInt(document.getElementById("stopThreshold").value); a.activeInterval = parseInt(document.getElementById("activeInterval").value); a.pollInterval = parseInt(document.getElementById("pollInterval").value); saveAll(); showToast("角色参数已保存"); document.getElementById("roleParamsModal").style.display = "none"; restartActiveMsgTimer(); }
     function openRoleParams() { loadRoleParamsUI(); document.getElementById("roleParamsModal").style.display = "flex"; }
 
-    async function importChatBoxData(file) { showToast("功能开发中"); }
-    function exportToChatBox() { showToast("功能开发中"); }
-    function exportChat() { showToast("功能开发中"); }
-    function exportPersona() { showToast("功能开发中"); }
-    function importPersona() { showToast("功能开发中"); }
+    // ======================= 导入导出功能 =======================
+    function internalTransferToChatBox(content) { const match = content.match(/🧧TRANSFER\|([\d.]+)\|([^🧧]*)🧧/); if (match) { let amount = match[1]; let note = match[2]; return `*￥${amount} 请对方接收<br>${note}*`; } return content; }
+    function chatBoxTransferToInternal(content) { const match = content.match(/^\*￥([\d.]+) 请对方接收<br>(.*)\*$/); if (match) { let amount = match[1]; let note = match[2]; return `🧧TRANSFER|${amount}|${note}🧧`; } return content; }
+
+    async function importChatBoxData(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                let json = JSON.parse(e.target.result);
+                let sessions = json["chat-sessions-list"];
+                if (!sessions || sessions.length === 0) throw new Error("没有找到会话");
+                let sessionId = sessions[0].id;
+                let sessionKey = `session:${sessionId}`;
+                let session = json[sessionKey];
+                if (!session || !session.messages) throw new Error("会话数据无效");
+                let messages = session.messages;
+                let systemMsg = messages.find(m => m.role === "system");
+                let personaContent = "";
+                if (systemMsg && systemMsg.contentParts && systemMsg.contentParts[0]) {
+                    personaContent = systemMsg.contentParts[0].text;
+                }
+                let convMessages = messages.filter(m => m.role === "user" || m.role === "assistant");
+                let newMessages = [];
+                for (let msg of convMessages) {
+                    let content = "";
+                    if (msg.contentParts && msg.contentParts[0]) content = msg.contentParts[0].text;
+                    content = chatBoxTransferToInternal(content);
+                    let newMsg = {
+                        id: Date.now() + Math.random(),
+                        role: msg.role,
+                        content: content,
+                        timestamp: msg.timestamp || Date.now(),
+                        versions: [content],
+                        currentVersionIndex: 0
+                    };
+                    if (msg.role === "user") {
+                        newMsg.apiContent = content;
+                        newMsg.hasPrefix = false;
+                    }
+                    newMessages.push(newMsg);
+                }
+                newMessages.sort((a,b) => a.timestamp - b.timestamp);
+                const modal = document.getElementById("genericModal");
+                const modalTitle = document.getElementById("modalTitle");
+                const modalBody = document.getElementById("modalBody");
+                modalTitle.innerText = "导入 ChatBox 数据";
+                modalBody.innerHTML = `
+                    <p>选择导入方式：</p>
+                    <div><label><input type="radio" name="importOption" value="current" checked> 导入到当前角色（覆盖现有聊天记录）</label></div>
+                    <div><label><input type="radio" name="importOption" value="new"> 新建角色</label></div>
+                `;
+                modal.style.display = "flex";
+                const confirmBtn = document.getElementById("modalConfirmBtn");
+                const cancelBtn = document.getElementById("modalCancelBtn");
+                const closeModal = () => modal.style.display = "none";
+                let selectedOption = "current";
+                document.querySelectorAll('input[name="importOption"]').forEach(radio => {
+                    radio.addEventListener("change", (e) => { selectedOption = e.target.value; });
+                });
+                confirmBtn.onclick = () => {
+                    closeModal();
+                    if (selectedOption === "new") {
+                        let newRoleName = prompt("请输入新角色名称:", "导入的角色");
+                        if (newRoleName && !roles.includes(newRoleName)) {
+                            roles.push(newRoleName);
+                            roleData[newRoleName] = {
+                                messages: newMessages, location: "家中卧室", schedule: { today: [], tomorrow: [] }, longMemories: [],
+                                memoryFacts: [], worldbook: { 人物: [], 地点: [], 世界观: [], 自定义: [] },
+                                persona: personaContent || `你叫${newRoleName}，自然聊天，短句回复。`,
+                                userPersona: "", avatar: "", userAvatar: "", chatBackground: "",
+                                lastLocationUpdate: Date.now(),
+                                params: { contextRange: "20", temperature: 0.7, topP: 0.8, maxTokens: 1024, autoMemEnable: false, autoMemInterval: 30 },
+                                msgSinceLastSummary: 0,
+                                activeMsg: { enabled: false, dailyLimit: 10, stopThreshold: 5, activeInterval: 90, pollInterval: 15, sentToday: 0, lastCheckDate: new Date().toDateString(), consecutiveNoReply: 0, lastUserMsgTime: Date.now() }
+                            };
+                            saveAll();
+                            refreshRoleSelects();
+                            renderRolesList();
+                            showToast(`已导入到新角色：${newRoleName}`);
+                        } else { showToast("角色名无效或已存在"); }
+                    } else {
+                        let curData = getCurrentData();
+                        let existingMsgs = curData.messages;
+                        let allMsgs = [...existingMsgs, ...newMessages];
+                        let uniqueMap = new Map();
+                        for (let msg of allMsgs) {
+                            let key = `${msg.role}_${msg.content}_${msg.timestamp}`;
+                            if (!uniqueMap.has(key)) uniqueMap.set(key, msg);
+                        }
+                        let mergedMsgs = Array.from(uniqueMap.values());
+                        mergedMsgs.sort((a,b) => a.timestamp - b.timestamp);
+                        curData.messages = mergedMsgs;
+                        if (personaContent) curData.persona = personaContent;
+                        saveAll();
+                        renderChat();
+                        showToast("已导入到当前角色，聊天记录已合并");
+                    }
+                };
+                cancelBtn.onclick = closeModal;
+            } catch(err) { showToast("导入失败: " + err.message); }
+        };
+        reader.readAsText(file);
+    }
+
+    function exportToChatBox() {
+        let data = getCurrentData();
+        let sessionId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString();
+        let messages = [];
+        if (data.persona) {
+            messages.push({ id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(), role: "system", contentParts: [{ type: "text", text: data.persona }], timestamp: Date.now() });
+        }
+        for (let msg of data.messages) {
+            let content = internalTransferToChatBox(msg.content);
+            messages.push({ id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString() + Math.random(), role: msg.role, contentParts: [{ type: "text", text: content }], timestamp: msg.timestamp });
+        }
+        let exportObj = { "__exported_items": ["conversations", "copilot"], "__exported_at": new Date().toISOString(), "chat-sessions-list": [{ id: sessionId, name: currentRole, starred: false, type: "chat" }], "configVersion": 14, "myCopilots": [], [`session:${sessionId}`]: { name: currentRole, type: "chat", messages: messages } };
+        let jsonStr = JSON.stringify(exportObj, null, 2);
+        download(jsonStr, `chatbox_export_${currentRole}.json`, "application/json");
+        showToast("已导出为 ChatBox 格式");
+    }
+
+    function exportChat() { showToast("请使用「导出为 ChatBox 格式」功能"); }
+    function exportPersona() { showToast("请直接复制人设文本框内容"); }
+    function importPersona() { showToast("请在人设文本框手动粘贴"); }
     function backupAll() { let backup={ roles, roleData, lastActiveDate, activeMsgCountToday, globalWallpaper }; download(JSON.stringify(backup), "backup.json", "application/json"); }
     function restoreAll(file) { let reader=new FileReader(); reader.onload=e=>{ let d=JSON.parse(e.target.result); if(d.roles && d.roleData) { roles=d.roles; roleData=d.roleData; globalWallpaper=d.globalWallpaper||""; location.reload(); } }; if(file) reader.readAsText(file); }
     function resetAll() { if(confirm("重置所有数据？不可恢复")){ localStorage.clear(); location.reload(); } }
@@ -1191,6 +1342,8 @@
     function download(content, filename, type) { let a = document.createElement('a'); let blob = new Blob([content], {type}); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); }
     function setupCollapsibles() { const autoMemCheck = document.getElementById("autoMemEnable"); const autoMemDiv = document.getElementById("autoMemCollapsible"); const activeMsgCheck = document.getElementById("activeMsgEnable"); const activeMsgDiv = document.getElementById("activeMsgCollapsible"); if (autoMemCheck && autoMemDiv) autoMemCheck.addEventListener("change", () => autoMemDiv.classList.toggle("hidden", !autoMemCheck.checked)); if (activeMsgCheck && activeMsgDiv) activeMsgCheck.addEventListener("change", () => activeMsgDiv.classList.toggle("hidden", !activeMsgCheck.checked)); }
     function handleImageUpload(callback) { const input = document.createElement("input"); input.type = "file"; input.accept = "image/*"; input.onchange = async (e) => { if (e.target.files.length) { try { const dataUrl = await compressAndUpload(e.target.files[0], 300, 0.7); callback(dataUrl); } catch (err) { showToast("图片处理失败"); } } }; input.click(); }
+
+    function refreshRoleSelects() { /* 已改用下拉菜单，无需实现 */ }
 
     document.querySelectorAll('[data-page]').forEach(el => el.onclick = () => showPage(el.dataset.page + "Page"));
     document.querySelectorAll('[data-home]').forEach(btn => btn.onclick = () => showPage("homePage"));
