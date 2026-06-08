@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.1 - 角色姓名分离，系统信息标记块，人称混淆修复</title>
+    <title>DobbyChat · 智能角色陪伴 v2.3 - 分页加载 | 图片包装 | 多行输入 | 多选滚动修复</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -383,6 +383,10 @@
             outline: none;
             font-size: 16px;
             color: var(--input-text);
+            resize: none;
+            overflow-y: auto;
+            line-height: 1.4;
+            font-family: inherit;
         }
         .chat-input::placeholder {
             color: var(--input-placeholder);
@@ -395,10 +399,13 @@
             border-radius: 30px;
             font-weight: 600;
             cursor: pointer;
-            font-size: 18px;
+            font-size: 20px;
             line-height: 36px;
             text-align: center;
             transition: background 0.2s, opacity 0.2s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         .send-btn:disabled {
             background: var(--send-btn-disabled);
@@ -406,22 +413,8 @@
             opacity: 0.7;
         }
         .send-btn.loading {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .send-btn.loading::before {
-            content: "";
-            width: 18px;
-            height: 18px;
-            margin-right: 8px;
-            border: 2px solid var(--send-btn-color);
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+            opacity: 0.6;
+            pointer-events: none;
         }
         .image-upload-btn {
             background: transparent;
@@ -841,6 +834,14 @@
         input:checked + .slider:before {
             transform: translateX(24px);
         }
+        /* 分页加载时的加载提示 */
+        .loading-indicator {
+            text-align: center;
+            padding: 12px;
+            color: var(--timestamp-color);
+            font-size: 12px;
+            background: transparent;
+        }
     </style>
 </head>
 <body>
@@ -865,8 +866,8 @@
         <div id="roleDropdownMenu" class="role-dropdown-menu" style="display:none;"></div>
         <div class="chat-messages" id="chatMessagesContainer"></div>
         <div class="chat-input-area">
-            <input type="text" id="messageInput" class="chat-input" placeholder="输入消息...">
-            <button id="sendMessageBtn" class="send-btn">↑</button>
+            <textarea id="messageInput" class="chat-input" placeholder="输入消息..." rows="1"></textarea>
+            <button id="sendMessageBtn" class="send-btn">💌</button>
             <button id="imageUploadBtn" class="image-upload-btn">➕</button>
         </div>
     </div>
@@ -887,8 +888,8 @@
     </div>
     <div id="roleDetailPage" class="page" style="display:none;">
         <div class="header"><button id="backToRolesBtn" class="back-home">←</button><div class="page-title" id="roleDetailTitle">编辑角色</div><button id="deleteRoleBtn" class="danger-btn" style="padding:4px 12px;">删除</button></div>
-        <div class="card-list"><div class="flex-between"><label>角色显示名（备注）</label><input id="editRoleName" placeholder="显示名"></div></div>
-        <div class="card-list"><div class="flex-between"><label>角色姓名（AI自称）</label><input id="editAiName" placeholder="例如：艾莉、小美"></div><div class="flex-between"><small style="color:gray;">AI 会用此名字指代自己，如“艾莉 位于录音棚”</small></div></div>
+        <div class="card-list"><div class="flex-between"><label>角色姓名</label><input id="editAiName" placeholder="例如：沈知予"></div></div>
+        <div class="card-list"><div class="flex-between"><label>联系人备注</label><input id="editRoleName" placeholder="例如：小文盲 😂"></div></div>
         <div class="tab-bar">
             <button class="tab-btn active" data-role-tab="persona">人设</button>
             <button class="tab-btn" data-role-tab="memory">长期事实记忆</button>
@@ -1084,7 +1085,7 @@ function getCurrentData(){
             memoryFacts:[],
             worldbook:{人物:[],地点:[],世界观:[],自定义:[]},
             persona:`你叫${currentRole}，说话简短自然，像朋友聊天。`,
-            aiName: currentRole,  // AI 自称的名字，默认等于显示名
+            aiName: currentRole,
             userPersona:"", avatar:"", userAvatar:"", chatBackground:"",
             lastLocationUpdate:Date.now(),
             params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 },
@@ -1137,7 +1138,7 @@ function loadAll(){
     const cloudName=document.getElementById("cloudName"); if(cloudName) cloudName.value=visionSettings.cloudName;
     const uploadPreset=document.getElementById("uploadPreset"); if(uploadPreset) uploadPreset.value=visionSettings.uploadPreset;
     toggleVisionSettingsUI();
-    updateImageUploadButtonVisibility(); // 根据配置显示/隐藏按钮
+    updateImageUploadButtonVisibility();
     if(globalWallpaper) document.getElementById("wallpaperBg").style.backgroundImage=`url(${globalWallpaper})`;
     else document.getElementById("wallpaperBg").style.backgroundImage="url('https://picsum.photos/id/104/800/1200')";
     let curData=getCurrentData();
@@ -1167,7 +1168,6 @@ function toggleVisionSettingsUI(){ let div=document.getElementById("visionApiSet
 function updateImageUploadButtonVisibility(){
     const btn = document.getElementById("imageUploadBtn");
     if(btn){
-        // 只有识图功能启用且必要的配置填写完整时才显示按钮
         const hasConfig = visionSettings.enabled && visionSettings.apiKey && visionSettings.cloudName && visionSettings.uploadPreset;
         btn.style.display = hasConfig ? "flex" : "none";
     }
@@ -1273,8 +1273,6 @@ function retrieveRelevantMemoryFacts(userMessage){
 function buildBaseSystemPrompt(){
     let data = getCurrentData();
     let transferRule = `\n\n💰 转账规则：如果你要给用户转账，请单独发送一条消息，内容严格为 🧧TRANSFER|金额|备注🧧，例如 🧧TRANSFER|88.88|请你喝奶茶🧧。金额数字保留两位小数，备注最多20字。不要与其他文字混合。`;
-    
-    // 活人感核心规则 + 多样性 + 历史回响（纯提示词）
     let livingRules = `
 📝 你是一个真实的人类，不是AI。以下是你必须遵守的聊天铁律：
 
@@ -1292,6 +1290,7 @@ function buildBaseSystemPrompt(){
 12. **允许碎片化**：想到什么说什么，不必每次回复都结构完整。一个情绪点发出去就停，不要接着解释原因。
 13. **打破重复，保持新鲜**：避免在连续多轮中使用相同的句式开头、相同的情感表达方式。如果你发现自己即将说出和之前类似的话，必须换一种全新的说法。
 14. **记得过去的事（历史回响）**：你记得和用户之间发生过的那些重要的事。在合适的时机，可以自然地提起之前聊过的话题或发生过的事，就像朋友聊天时突然想起来那样。不要刻意，每3-5轮提一次即可。绝对不要复述用户的话，而是以你自己的想法引出。
+15. **不要使用动作描述**：禁止使用括号、星号等表示动作（如“（笑）”“*叹气*”）。情绪通过文字本身传达，而不是括号注释。
 
 你可以自然说话，一句话可以说得很长，也可以很短。如果你想表达多个不同的意思，建议用换行（回车）分隔，这样每条独立显示会更清晰。不要刻意把一句话拆成多条，除非那样更符合日常聊天习惯。
 `;
@@ -1309,7 +1308,6 @@ function buildSystemInfoBlock(){
     lines.push(`🔹 系统信息：`);
     lines.push(`当前时间：${timeStr}，星期${weekday}，${season}天。`);
     if(data.location) lines.push(`${data.aiName} 目前位于：${data.location}。`);
-    // 距离上次聊天间隔（最后一条消息的时间）
     let lastMsgTime = data.messages.length > 0 ? data.messages[data.messages.length-1].timestamp : null;
     if(lastMsgTime){
         let gapMin = Math.floor((Date.now() - lastMsgTime) / 60000);
@@ -1317,13 +1315,10 @@ function buildSystemInfoBlock(){
         else if(gapMin >= 60 && gapMin < 1440) lines.push(`距离上次聊天过了 ${Math.floor(gapMin/60)} 小时。`);
         else if(gapMin >= 1440) lines.push(`距离上次聊天过了 ${Math.floor(gapMin/1440)} 天。`);
     }
-    // 用户设定
     if(data.userPersona) lines.push(`关于对方：${data.userPersona}`);
-    // 长期记忆（取前3）
     if(data.longMemories && data.longMemories.length > 0){
         lines.push(`你记得：${data.longMemories.slice(0,3).join("；")}`);
     }
-    // 世界书
     if(data.worldbook){
         let wb = data.worldbook;
         let wbParts = [];
@@ -1331,21 +1326,15 @@ function buildSystemInfoBlock(){
         if(wb.地点?.length) wbParts.push(`知道的地方：${wb.地点.slice(0,2).join("、")}`);
         if(wbParts.length) lines.push(wbParts.join("。"));
     }
-    // 日程和热点按需注入（如果用户消息触发了关键词，在外部调用时传入）
-    // 这里只放固定背景信息，日程和热点在 shouldInject 时再追加到 lines 中
     return lines;
 }
 
 function buildUserMessagePrefix(currentUserMessage, lastMsgTimestamp, scheduleContext="", hotContext=""){
     let lines = buildSystemInfoBlock();
-    // 追加日程
     if(scheduleContext) lines.push(scheduleContext);
-    // 追加热点
     if(hotContext) lines.push(hotContext);
-    // 追加相关记忆检索结果
     let facts = retrieveRelevantMemoryFacts(currentUserMessage);
     if(facts.length) lines.push(`相关记忆：${facts.join("；")}`);
-    // 拼接
     let block = lines.join("\n");
     let separator = "\n---\n";
     return block + separator + currentUserMessage;
@@ -1478,13 +1467,17 @@ async function sendMessage(text, skipActiveReset=false){
     let btn=document.getElementById("sendMessageBtn");
     btn.disabled=true;
     btn.classList.add("loading");
-    btn.textContent = "";
+    btn.textContent = "💌";
     try{
         let bubbles=await callDeepSeekBubbles(prefixedText,null,"");
         data.messages.push(userMsg);
         saveAll();
         renderChat();
         document.getElementById("messageInput").value="";
+        // 重置textarea高度
+        let txt = document.getElementById("messageInput");
+        txt.style.height = "auto";
+        txt.style.height = (txt.scrollHeight) + "px";
         await addAiBubblesSequentially(bubbles);
     }catch(e){
         showToast("回复失败: "+e.message);
@@ -1492,27 +1485,28 @@ async function sendMessage(text, skipActiveReset=false){
         isWaitingForAI=false;
         btn.disabled=false;
         btn.classList.remove("loading");
-        btn.textContent="↑";
+        btn.textContent = "💌";
     }
 }
 
-async function autoGenerateReplyForImage(description, userMsg){
+// 图片消息自动回复（包装描述）
+async function autoGenerateReplyForImage(wrappedDescription, userMsg){
     let data=getCurrentData();
     if(isWaitingForAI) return;
     let lastMsgTimestamp=data.messages.length>0?data.messages[data.messages.length-1].timestamp:null;
-    let scheduleCtx = shouldInjectSchedule(description) ? getScheduleContext() : "";
-    let hotCtx = shouldInjectHot(description) ? getHotContext() : "";
-    let prefixedDesc = buildUserMessagePrefix(description, lastMsgTimestamp, scheduleCtx, hotCtx);
+    let scheduleCtx = shouldInjectSchedule(wrappedDescription) ? getScheduleContext() : "";
+    let hotCtx = shouldInjectHot(wrappedDescription) ? getHotContext() : "";
+    let prefixedDesc = buildUserMessagePrefix(wrappedDescription, lastMsgTimestamp, scheduleCtx, hotCtx);
     isWaitingForAI=true;
     let btn=document.getElementById("sendMessageBtn");
     btn.disabled=true;
     btn.classList.add("loading");
-    btn.textContent = "";
+    btn.textContent = "💌";
     try{
         let bubbles=await callDeepSeekBubbles(prefixedDesc,null,"");
         await addAiBubblesSequentially(bubbles);
     }catch(e){ showToast("自动回复失败: "+e.message); }
-    finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.textContent="↑"; }
+    finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.textContent="💌"; }
 }
 
 async function compressImage(file,maxSizeMB=0.8,maxWidthOrHeight=1024){
@@ -1564,6 +1558,7 @@ async function describeImageWithGLM(imageUrl){
     throw new Error('未获取到描述');
 }
 
+// 发送图片消息（包装后发给AI）
 async function sendImageMessage(file){
     if(!visionSettings.enabled || !visionSettings.apiKey){ showToast("未启用识图功能或缺少API Key"); return; }
     showToast("处理图片中...");
@@ -1572,12 +1567,14 @@ async function sendImageMessage(file){
         const imageUrl=await uploadToCloudinary(compressedBlob);
         const description=await describeImageWithGLM(imageUrl);
         if(!description) throw new Error("识别结果为空");
-        let imageMsg={ id:generateMsgId(), role:"user", type:"image", content:description, imageUrl:imageUrl, timestamp:Date.now(), hasPrefix:true, apiContent:description };
+        // 构造包装后的消息（AI看到）
+        let wrappedDescription = `[用户发来一张图片，内容大概是：${description}]`;
+        let imageMsg={ id:generateMsgId(), role:"user", type:"image", content:description, imageUrl:imageUrl, timestamp:Date.now(), hasPrefix:true, apiContent:wrappedDescription };
         let data=getCurrentData();
         data.messages.push(imageMsg);
         saveAll();
         renderChat();
-        await autoGenerateReplyForImage(description, imageMsg);
+        await autoGenerateReplyForImage(wrappedDescription, imageMsg);
     }catch(err){ console.error(err); showToast("图片处理失败: "+err.message); }
 }
 
@@ -1623,7 +1620,8 @@ async function regenerateAiMessage(msgId){
     isWaitingForAI=true;
     showToast("重新生成中...");
     try{
-        let bubbles=await callDeepSeekBubbles(null,apiHistory,"\n请用不同的表达方式重新回答，不要重复之前的内容。");
+        let extra = "\n【强制要求】完全重写你的回答。改变内容、角度或具体细节，不要只是换说法。";
+        let bubbles=await callDeepSeekBubbles(null,apiHistory,extra);
         if(!bubbles.length) throw new Error("生成空回复");
         let newContent=bubbles[0];
         if(!msg.versions) msg.versions=[msg.content];
@@ -1694,7 +1692,11 @@ function enterMultiSelectMode(defaultId=null){
     if(defaultId) selectedMsgIds.add(defaultId);
     const container=document.getElementById("chatMessagesContainer");
     container.classList.add("multi-select-active");
+    // 保存滚动位置
+    let oldScrollTop = container.scrollTop;
     renderChat();
+    // 恢复滚动位置
+    container.scrollTop = oldScrollTop;
     let bar=document.getElementById("multiSelectBar");
     if(!bar){
         bar=document.createElement("div");
@@ -1736,7 +1738,7 @@ function toggleSelectMessage(id){
     if(selectedMsgIds.has(id)) selectedMsgIds.delete(id);
     else selectedMsgIds.add(id);
     updateSelectedCount();
-    renderChat();
+    renderChat(); // 重新渲染以更新复选框状态，但会丢失滚动位置，需在外部处理
 }
 async function confirmDeleteSelected(){
     if(selectedMsgIds.size===0){ exitMultiSelectMode(); return; }
@@ -1771,12 +1773,12 @@ async function autoGenerateReplyAfterDelete(){
         let btn=document.getElementById("sendMessageBtn");
         btn.disabled=true;
         btn.classList.add("loading");
-        btn.textContent="";
+        btn.textContent="💌";
         try{
             let bubbles=await callDeepSeekBubbles(prefixed,data.messages.slice(0,-1),"");
             await addAiBubblesSequentially(bubbles);
         }catch(e){ showToast("自动回复失败: "+e.message); }
-        finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.textContent="↑"; }
+        finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.textContent="💌"; }
     }
 }
 
@@ -1798,11 +1800,21 @@ function formatTimestamp(ts){
     const year=date.getFullYear(); const month=(date.getMonth()+1).toString().padStart(2,'0'); const day=date.getDate().toString().padStart(2,'0'); return `${year}年${month}月${day}日 ${timeStr}`;
 }
 
+// 分页加载变量
+let currentDisplayCount = 50;      // 当前显示的消息数量（从最新开始往前数）
+const PAGE_STEP = 30;              // 每次加载更多时增加的数量
+let isLoadingMore = false;          // 防止重复加载
+
 function renderChat(){
     let container=document.getElementById("chatMessagesContainer");
     if(!container) return;
     let data=getCurrentData();
-    let messages=data.messages||[];
+    let allMessages=data.messages||[];
+    let totalMessages = allMessages.length;
+    // 确保 currentDisplayCount 不超过总消息数
+    if(currentDisplayCount > totalMessages) currentDisplayCount = totalMessages;
+    // 从末尾截取 currentDisplayCount 条
+    let messages = allMessages.slice(-currentDisplayCount);
     let roleAvatarUrl=data.avatar||"";
     let userAvatarUrl=data.userAvatar||"";
     let html='';
@@ -1836,7 +1848,7 @@ function renderChat(){
             const note=transMatch[2].trim()||"转账给你";
             contentHtml=`<div class="transfer-card"><div class="transfer-icon">⇄</div><div class="transfer-info"><div class="transfer-amount">¥${amount}</div><div class="transfer-note">${escapeHtml(note)}</div><div class="transfer-label">转账</div></div></div>`;
         }else if(msg.type==='image'){
-            contentHtml=`<div class="image-message"><img src="${escapeHtml(msg.imageUrl)}" class="image-thumb" onclick="showImagePreview('${escapeHtml(msg.imageUrl)}')" oncontextmenu="return false;" draggable="false" data-msg-id="${msg.id}"><div class="image-description">${escapeHtml(msg.content)}</div></div>`;
+            contentHtml=`<div class="image-message"><img src="${escapeHtml(msg.imageUrl)}" class="image-thumb" data-msg-id="${msg.id}"><div class="image-description">${escapeHtml(msg.content)}</div></div>`;
         }else{
             contentHtml=`<div>${escapeHtml(msg.content)}</div>`;
         }
@@ -1849,7 +1861,7 @@ function renderChat(){
         let messageClass='message '+sender;
         if(isTransfer && sender==='ai') messageClass+=' transfer-message';
         if(sender==="user"){
-            html+=`<div class="message-row user" data-msg-id="${msg.id}" data-role="user" style="position:relative;">${checkboxHtml}<div class="${messageClass}" data-id="${msg.id}" data-content="${escapeHtml(msg.content)}" data-type="${msg.type||'text'}" data-image-url="${msg.imageUrl||''}">${contentHtml}</div>${avatarHtml}</div>`;
+            html+=`<div class="message-row user" data-msg-id="${msg.id}" data-role="user" data-content="${escapeHtml(msg.content)}" data-type="${msg.type||'text'}" data-image-url="${msg.imageUrl||''}" style="position:relative;">${checkboxHtml}<div class="${messageClass}">${contentHtml}</div>${avatarHtml}</div>`;
         }else{
             if(msg.role==='ai' && !isTransfer){
                 let versionHtml='';
@@ -1859,69 +1871,101 @@ function renderChat(){
                 }
                 aiButtons=`<div class="ai-buttons"><div class="regenerate-icon" data-id="${msg.id}">↻</div>${versionHtml}</div>`;
             }
-            html+=`<div class="message-row ai" data-msg-id="${msg.id}" data-role="ai" style="position:relative;">${checkboxHtml}${avatarHtml}<div class="${messageClass}" data-id="${msg.id}" data-content="${escapeHtml(msg.content)}" data-type="${msg.type||'text'}" data-image-url="${msg.imageUrl||''}">${contentHtml}</div>${aiButtons}</div>`;
+            html+=`<div class="message-row ai" data-msg-id="${msg.id}" data-role="ai" data-content="${escapeHtml(msg.content)}" data-type="${msg.type||'text'}" data-image-url="${msg.imageUrl||''}" style="position:relative;">${checkboxHtml}${avatarHtml}<div class="${messageClass}">${contentHtml}</div>${aiButtons}</div>`;
         }
     }
+    // 如果需要显示“加载更多”提示（当前显示数量少于总消息数）
+    if(currentDisplayCount < totalMessages){
+        html = `<div class="loading-indicator" id="loadMoreTrigger">⬆️ 上拉加载更早消息</div>` + html;
+    }
     container.innerHTML=html;
+    
+    // 绑定重新生成和版本切换事件
     document.querySelectorAll('.regenerate-icon').forEach(icon=>icon.onclick=e=>{ e.stopPropagation(); regenerateAiMessage(icon.dataset.id); });
     document.querySelectorAll('.version-arrow').forEach(arrow=>arrow.onclick=e=>{ e.stopPropagation(); switchVersion(arrow.dataset.id,parseInt(arrow.dataset.delta)); });
     
-    document.querySelectorAll('.message, .image-thumb').forEach(el => {
+    // 阻止所有可能的系统右键/长按菜单
+    document.querySelectorAll('.message, .image-thumb, .message-row').forEach(el => {
         el.addEventListener('contextmenu', (e) => e.preventDefault());
+        el.addEventListener('selectstart', (e) => e.preventDefault());
     });
+    
+    // 添加双击弹出菜单
+    const addDoubleClickToRow = (row) => {
+        const msgId = row.dataset.msgId;
+        const role = row.dataset.role;
+        const content = row.dataset.content;
+        const type = row.dataset.type;
+        const imageUrl = row.dataset.imageUrl;
+        if (row._dblClickHandler) {
+            row.removeEventListener('dblclick', row._dblClickHandler);
+        }
+        const handler = (e) => {
+            if (multiSelectMode) return;
+            if (e.target.closest('.message-checkbox')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            showContextMenu(e, msgId, role, content, type, imageUrl);
+        };
+        row._dblClickHandler = handler;
+        row.addEventListener('dblclick', handler);
+    };
     document.querySelectorAll('.message-row').forEach(row => {
-        row.addEventListener('contextmenu', (e) => e.preventDefault());
+        addDoubleClickToRow(row);
+    });
+    
+    // 图片单击预览
+    document.querySelectorAll('.image-thumb').forEach(img => {
+        img.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const imgUrl = img.src;
+            showImagePreview(imgUrl);
+        });
     });
     
     if(multiSelectMode){
         document.querySelectorAll('.message-checkbox').forEach(chk=>chk.onclick=e=>{ e.stopPropagation(); toggleSelectMessage(chk.dataset.id); });
-    }else{
-        let longPressTimer = null;
-        let startX, startY;
-        const resetLongPress = () => {
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
-        };
-        document.querySelectorAll('.message-row').forEach(row=>{
-            const msgDiv=row.querySelector('.message');
-            if(!msgDiv) return;
-            const msgId=row.dataset.msgId;
-            const role=row.dataset.role;
-            const content=msgDiv.dataset.content;
-            const type=msgDiv.dataset.type;
-            const imageUrl=msgDiv.dataset.imageUrl;
-            row.addEventListener('touchstart', (e) => {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-                resetLongPress();
-                longPressTimer = setTimeout(() => {
-                    e.preventDefault();
-                    showContextMenu(e, msgId, role, content, type, imageUrl);
-                    resetLongPress();
-                }, 500);
-            }, { passive: false });
-            row.addEventListener('touchmove', (e) => {
-                if (!startX || !startY) return;
-                const moveX = e.touches[0].clientX;
-                const moveY = e.touches[0].clientY;
-                const deltaX = Math.abs(moveX - startX);
-                const deltaY = Math.abs(moveY - startY);
-                if (deltaX > 10 || deltaY > 10) {
-                    resetLongPress();
+    }
+    
+    // 滚动监听：当滚动到顶部附近时加载更多
+    const loadMoreTrigger = document.getElementById("loadMoreTrigger");
+    if(loadMoreTrigger && !isLoadingMore){
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if(entry.isIntersecting && !isLoadingMore && currentDisplayCount < totalMessages){
+                    isLoadingMore = true;
+                    // 保存当前滚动位置（相对于顶部）
+                    let oldScrollHeight = container.scrollHeight;
+                    let oldScrollTop = container.scrollTop;
+                    currentDisplayCount = Math.min(totalMessages, currentDisplayCount + PAGE_STEP);
+                    renderChat();
+                    // 恢复滚动位置（由于新增了消息在上面，需要调整）
+                    let newScrollHeight = container.scrollHeight;
+                    container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
+                    isLoadingMore = false;
+                    observer.disconnect();
                 }
             });
-            row.addEventListener('touchend', resetLongPress);
-            row.addEventListener('touchcancel', resetLongPress);
-            row.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                showContextMenu(e, msgId, role, content, type, imageUrl);
-            });
-        });
+        }, { threshold: 0.1 });
+        observer.observe(loadMoreTrigger);
+        // 存储以便后续清理（可选）
+        container._loadMoreObserver = observer;
+    } else if(loadMoreTrigger && container._loadMoreObserver){
+        container._loadMoreObserver.disconnect();
+        container._loadMoreObserver = null;
     }
-    scrollChatBottom();
+    
+    // 如果不是多选模式，自动滚动到底部（仅在发送新消息时希望滚动，但为了避免干扰，仅在非多选且消息是新增时滚动？简单处理：不自动滚动）
+    // 为了保持用户阅读体验，在非多选模式下不要强制滚动，而是让用户控制。但以前有 scrollChatBottom 调用，我们改为只在发送新消息后由外部调用 scrollChatBottom
+    // 这里不再自动滚动到底部。
+    // 但仍需在必要时滚动到底部（例如首次加载或发送消息后）。外部调用 scrollChatBottom 即可。
 }
+
+function scrollChatBottom(){
+    let c=document.getElementById("chatMessagesContainer");
+    if(c && !multiSelectMode) c.scrollTop=c.scrollHeight;
+}
+
 function showImagePreview(url){ let modal=document.getElementById("imagePreviewModal"); let img=document.getElementById("previewImage"); img.src=url; modal.style.display="flex"; }
 function showContextMenu(e,msgId,role,content,type,imageUrl){
     e.preventDefault();
@@ -1946,7 +1990,7 @@ function showContextMenu(e,msgId,role,content,type,imageUrl){
         { icon:"🧠", label:"记忆", action:()=>{ summarizeLongTermMemory(false); menu.remove(); } },
         { icon:"🗑️", label:"删除", action:()=>{ enterMultiSelectMode(msgId); menu.remove(); } }
     ];
-    if(type==="image" && imageUrl) actions.splice(2,0,{ icon:"🖼️", label:"重新生成描述", action:async()=>{ await regenerateImageDescription(msgId); menu.remove(); } });
+    if(type==="image" && imageUrl) actions.splice(2,0,{ icon:"🖼️", label:"预览图片", action:()=>{ showImagePreview(imageUrl); menu.remove(); } });
     actions.forEach(a=>{ let div=document.createElement("div"); div.innerHTML=`${a.icon} ${a.label}`; div.onclick=ev=>{ ev.stopPropagation(); a.action(); }; menu.appendChild(div); });
     document.body.appendChild(menu);
     let remove=()=>{ if(menu.parentNode) menu.remove(); document.removeEventListener("click",remove); };
@@ -2130,6 +2174,8 @@ function updateRoleDropdownMenu(){
                 else lastUserMessageTime=Date.now();
                 restartActiveMsgTimer();
                 updateChatBackground();
+                // 重置分页显示数量，重新渲染
+                currentDisplayCount = Math.min(50, getCurrentData().messages.length);
                 renderChat();
                 updateLocationAuto();
                 renderLocationPage();
@@ -2266,10 +2312,12 @@ function deleteCurrentRole(){
     }
 }
 function addNewRoleFromList(){
-    let newName=prompt("新角色名（显示名）");
+    let newName=prompt("新角色名（联系人备注）");
     if(newName && !roles.includes(newName)){
+        let aiName = prompt("角色姓名（AI自称）", newName);
+        if(!aiName) aiName = newName;
         roles.push(newName);
-        roleData[newName]={ messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:`你叫${newName}，自然聊天，短句回复。`, aiName:newName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
+        roleData[newName]={ messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:`你叫${aiName}，自然聊天，短句回复。`, aiName:aiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
         saveAll();
         updateRoleDropdownMenu();
         renderRolesList();
@@ -2366,10 +2414,12 @@ async function importChatBoxData(file){
             confirmBtn.onclick=()=>{
                 closeModal();
                 if(selectedOption==="new"){
-                    let newRoleName=prompt("请输入新角色名称:","导入的角色");
+                    let newRoleName=prompt("请输入联系人备注:","导入的角色");
+                    let newAiName = prompt("角色姓名（AI自称）", newRoleName);
+                    if(!newAiName) newAiName = newRoleName;
                     if(newRoleName && !roles.includes(newRoleName)){
                         roles.push(newRoleName);
-                        roleData[newRoleName]={ messages:newMessages, location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:personaContent||`你叫${newRoleName}，自然聊天，短句回复。`, aiName:newRoleName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
+                        roleData[newRoleName]={ messages:newMessages, location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:personaContent||`你叫${newAiName}，自然聊天，短句回复。`, aiName:newAiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
                         saveAll();
                         refreshRoleSelects();
                         renderRolesList();
@@ -2419,14 +2469,20 @@ function updateRoleDisplay(){ let elem=document.getElementById("roleDisplay"); i
 function showPage(pageId){
     document.querySelectorAll('.page').forEach(p=>p.style.display='none');
     document.getElementById(pageId).style.display='flex';
-    if(pageId==='chatPage'){ updateChatBackground(); renderChat(); updateLocationAuto(); updateRoleDisplay(); }
+    if(pageId==='chatPage'){ 
+        updateChatBackground(); 
+        // 重置分页显示数量为最近50条
+        currentDisplayCount = Math.min(50, getCurrentData().messages.length);
+        renderChat(); 
+        updateLocationAuto(); 
+        updateRoleDisplay(); 
+    }
     if(pageId==='locationPage'){ updateLocationAuto(); renderLocationPage(); }
     if(pageId==='rolesPage') renderRolesList();
     if(pageId==='hotPage'){}
     if(pageId==='settingsPage') loadApiSettingsUI();
 }
 function escapeHtml(str){ return String(str).replace(/[&<>]/g,function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
-function scrollChatBottom(){ let c=document.getElementById("chatMessagesContainer"); if(c) c.scrollTop=c.scrollHeight; }
 function showToast(msg){ let t=document.getElementById("toast"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",2000); }
 function download(content,filename,type){ let a=document.createElement('a'); let blob=new Blob([content],{type}); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); }
 function setupCollapsibles(){
@@ -2442,7 +2498,19 @@ function refreshRoleSelects(){}
 
 document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>showPage(el.dataset.page+"Page"));
 document.querySelectorAll('[data-home]').forEach(btn=>btn.onclick=()=>showPage("homePage"));
-document.getElementById("sendMessageBtn").onclick=()=>sendMessage(document.getElementById("messageInput").value);
+document.getElementById("sendMessageBtn").onclick=()=>{
+    let txt = document.getElementById("messageInput");
+    let text = txt.value;
+    if(text.trim() && !isWaitingForAI) sendMessage(text);
+};
+// 自动调整textarea高度
+const textarea = document.getElementById("messageInput");
+if(textarea){
+    textarea.addEventListener("input", function() {
+        this.style.height = "auto";
+        this.style.height = (this.scrollHeight) + "px";
+    });
+}
 document.getElementById("openRoleParamsBtn").onclick=openRoleParams;
 document.getElementById("closeParamsModal").onclick=()=>document.getElementById("roleParamsModal").style.display="none";
 document.getElementById("saveParamsBtn").onclick=saveRoleParamsFromModal;
