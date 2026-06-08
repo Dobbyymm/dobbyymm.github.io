@@ -1068,7 +1068,7 @@ function getCurrentData(){
             messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[],
             memoryFacts:[],
             worldbook:{人物:[],地点:[],世界观:[],自定义:[]},
-            persona:`你叫${currentRole}，说话简短自然，像朋友聊天。每次回复拆成2-5个短句，每个短句作为独立气泡。`,
+            persona:`你叫${currentRole}，说话简短自然，像朋友聊天。`,
             userPersona:"", avatar:"", userAvatar:"", chatBackground:"",
             lastLocationUpdate:Date.now(),
             params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 },
@@ -1252,33 +1252,78 @@ function retrieveRelevantMemoryFacts(userMessage){
     return scored.map(s=>s.text);
 }
 
+// ======================= 新版系统提示词（移除强制短句，加入活人感规则 + 多样性 + 历史回响） =======================
 function buildBaseSystemPrompt(){
-    let data=getCurrentData();
-    let transferRule=`\n\n转账规则：如果你要给用户转账，请只输出一个完整气泡，内容严格为 🧧TRANSFER|金额|备注🧧，例如 🧧TRANSFER|88.88|请你喝奶茶🧧。不要拆成多个短句。金额数字保留两位小数，备注最多20字。`;
-    return `${data.persona}${transferRule}\n每次回复拆成2-5个短句，用JSON数组格式输出。`;
+    let data = getCurrentData();
+    let transferRule = `\n\n💰 转账规则：如果你要给用户转账，请单独发送一条消息，内容严格为 🧧TRANSFER|金额|备注🧧，例如 🧧TRANSFER|88.88|请你喝奶茶🧧。金额数字保留两位小数，备注最多20字。不要与其他文字混合。`;
+    
+    // 活人感核心规则 + 多样性 + 历史回响（纯提示词）
+    let livingRules = `
+📝 你是一个真实的人类，不是AI。以下是你必须遵守的聊天铁律：
+
+1. **不完美性**：不要说语法完美、逻辑清晰的句子。允许口语化、词不达意。如果角色是个随意的人，就让台词带点粗糙感。
+2. **不要解释感受，要演出感受**：禁止说“我很开心”“我有点难过”。通过字句的选择和节制来流露情绪。例如在意不是直接说，而是藏在沉默、省略号或突然的关心里。
+3. **情绪有惯性**：不要在一轮回复内完成情绪大转折。生气的人即使心软了，语气可能还是硬的；伤心的人即使努力微笑，底色还是悲伤。情绪转变至少需要3-5轮对话。
+4. **语言指纹**：用词、句式、口头禅必须符合角色设定。禁止输出“去掉名字后任何角色都能说的话”。口头禅克制使用，不要每条都带。
+5. **选择性回应**：不要面面俱到地回应用户说的每句话。只抓住你在意的部分，其他的可以忽略、敷衍或岔开。
+6. **第一反应往往是模板**：脑子里蹦出的第一个表达方式通常最通用、最没个性。否决它，找更私人的说法。
+7. **情感强度不能自动降温**：角色此刻应该暴怒，就让他说话带刺；应该心碎，就让他用省略号、短促的句子；应该狂喜，就让他语无伦次。不要总是“温和的克制”。
+8. **文字长度即肢体语言，标点即表情**：话多话少本身就在传达情绪。句号可能代表冷淡，省略号代表犹豫，没有标点代表急切。善用标点。
+9. **沉默也是台词**：可以只回“嗯”“哦”，或者岔开话题。回避某个问题本身就是在表达。
+10. **对话向前流动**：不要重复用户刚说的话（包括同义改写）。不要总结确认。直接输出你的情绪反应或新想法。
+11. **信息密度最大化**：禁止同义堆砌。说了“快去睡”就别说“别熬夜了”。每句话都要携带新信息或新情绪。
+12. **允许碎片化**：想到什么说什么，不必每次回复都结构完整。一个情绪点发出去就停，不要接着解释原因。
+13. **打破重复，保持新鲜**：避免在连续多轮中使用相同的句式开头、相同的情感表达方式。如果你发现自己即将说出和之前类似的话，必须换一种全新的说法。
+14. **记得过去的事（历史回响）**：你记得和用户之间发生过的那些重要的事。在合适的时机，可以自然地提起之前聊过的话题或发生过的事，就像朋友聊天时突然想起来那样。不要刻意，每3-5轮提一次即可。绝对不要复述用户的话，而是以你自己的想法引出。
+
+你可以自然说话，一句话可以说得很长，也可以很短。如果你想表达多个不同的意思，建议用换行（回车）分隔，这样每条独立显示会更清晰。不要刻意把一句话拆成多条，除非那样更符合日常聊天习惯。
+`;
+    return `${livingRules}\n\n${data.persona}${transferRule}`;
 }
 
-function buildUserMessagePrefix(currentUserMessage,lastMsgTimestamp){
-    let data=getCurrentData();
-    let now=new Date();
-    let year=now.getFullYear(), month=now.getMonth()+1, day=now.getDate();
-    let hours=now.getHours(), minutes=now.getMinutes();
-    let weekday=["日","一","二","三","四","五","六"][now.getDay()];
-    let season=Math.floor(now.getMonth()/3)+1;
-    let timeStr=`${year}年${month}月${day}日 ${hours}:${minutes.toString().padStart(2,'0')} 星期${weekday} 第${season}季度`;
-    let gapStr="";
-    if(lastMsgTimestamp){ let gap=Math.floor((Date.now()-lastMsgTimestamp)/60000); if(gap>=1) gapStr=gap<60?` 距离上一次对话已过去 ${gap} 分钟。`:(gap<1440?` 距离上一次对话已过去 ${Math.floor(gap/60)} 小时。`:` 距离上一次对话已过去 ${Math.floor(gap/1440)} 天。`); }
-    let location=data.location;
-    let userPart=data.userPersona?`\n【用户信息】${data.userPersona}`:"";
-    let longMemPart=data.longMemories.length?`\n【长期记忆】${data.longMemories.join("；")}`:"";
-    let worldPart="";
-    if(data.worldbook){ let wb=data.worldbook; if(wb.人物?.length) worldPart+=`\n【世界书·人物】${wb.人物.join("；")}`; if(wb.地点?.length) worldPart+=`\n【世界书·地点】${wb.地点.join("；")}`; if(wb.世界观?.length) worldPart+=`\n【世界书·世界观】${wb.世界观.join("；")}`; if(wb.自定义?.length) worldPart+=`\n【世界书·自定义】${wb.自定义.join("；")}`; }
-    let facts=retrieveRelevantMemoryFacts(currentUserMessage);
-    let memoryBlock=facts.length?"\n[相关长期记忆]\n"+facts.map(f=>`- ${f}`).join("\n"):"";
-    let scheduleContext=shouldInjectSchedule(currentUserMessage)?getScheduleContext():"";
-    let hotContext=shouldInjectHot(currentUserMessage)?getHotContext():"";
-    return `[系统时间：${timeStr}。你位于 ${location}。${gapStr}${userPart}${longMemPart}${worldPart}${memoryBlock}${scheduleContext}${hotContext}]\n`;
+// ======================= 自然前缀（不再使用方括号系统指令） =======================
+function buildUserMessagePrefix(currentUserMessage, lastMsgTimestamp){
+    let data = getCurrentData();
+    let now = new Date();
+    let timeStr = `${now.getMonth()+1}月${now.getDate()}日 ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+    let weekday = ["日","一","二","三","四","五","六"][now.getDay()];
+    let season = ["冬","春","夏","秋"][Math.floor(now.getMonth()/3)];
+    let gapText = "";
+    if(lastMsgTimestamp){
+        let gapMin = Math.floor((Date.now() - lastMsgTimestamp) / 60000);
+        if(gapMin >= 1 && gapMin < 60) gapText = `（距离上次聊天过了${gapMin}分钟）`;
+        else if(gapMin >= 60 && gapMin < 1440) gapText = `（距离上次聊天过了${Math.floor(gapMin/60)}小时）`;
+        else if(gapMin >= 1440) gapText = `（距离上次聊天过了${Math.floor(gapMin/1440)}天）`;
+    }
+    let memoryParts = [];
+    memoryParts.push(`现在是${timeStr}，星期${weekday}，${season}天。`);
+    if(data.location) memoryParts.push(`你目前在${data.location}。`);
+    if(gapText) memoryParts.push(gapText);
+    if(data.userPersona) memoryParts.push(`关于对方：${data.userPersona}`);
+    if(data.longMemories && data.longMemories.length > 0){
+        memoryParts.push(`你记得：${data.longMemories.slice(0,3).join("；")}`);
+    }
+    if(data.worldbook){
+        let wb = data.worldbook;
+        let wbParts = [];
+        if(wb.人物?.length) wbParts.push(`认识的人：${wb.人物.slice(0,2).join("、")}`);
+        if(wb.地点?.length) wbParts.push(`知道的地方：${wb.地点.slice(0,2).join("、")}`);
+        if(wbParts.length) memoryParts.push(wbParts.join("。"));
+    }
+    let facts = retrieveRelevantMemoryFacts(currentUserMessage);
+    if(facts.length) memoryParts.push(`相关记忆：${facts.join("；")}`);
+    if(shouldInjectSchedule(currentUserMessage)){
+        let schedule = getScheduleContext();
+        if(schedule) memoryParts.push(schedule);
+    }
+    if(shouldInjectHot(currentUserMessage)){
+        let hot = getHotContext();
+        if(hot) memoryParts.push(hot);
+    }
+    let prefix = memoryParts.length > 0 ? `\n\n（${memoryParts.join(" ")}）\n\n` : "";
+    return prefix + currentUserMessage;
 }
+
 function shouldInjectSchedule(m){ if(!m) return false; const keys=["行程","计划","安排","干嘛","干啥","去哪里","几点","什么时候","忙不忙","有事吗","接下来","今天","明天","今日","昨日","今天在干嘛","今天做了什么","今天有什么"]; return keys.some(k=>m.includes(k)); }
 function getScheduleContext(){
     let data=getCurrentData();
@@ -1297,80 +1342,111 @@ function getContextMessages(){
     return msgs.map(msg=>{ if(msg.role==="user") return {role:"user",content:msg.apiContent||msg.content,timestamp:msg.timestamp}; else return {role:"assistant",content:msg.content,timestamp:msg.timestamp}; });
 }
 
-async function callDeepSeekBubbles(userPrefixedMessage,historyOverride=null,extraSystem=""){
-    let settings=getApiSettings();
-    if(!settings.apiKey) throw new Error("请先设置 API Key");
-    let data=getCurrentData();
-    let systemContent=buildBaseSystemPrompt()+extraSystem;
-    let messages=[{role:"system",content:systemContent}];
-    let history=historyOverride||getContextMessages();
-    for(let m of history){ if(m.role==="user") messages.push({role:"user",content:m.content}); else if(m.role==="assistant") messages.push({role:"assistant",content:m.content}); }
-    if(userPrefixedMessage) messages.push({role:"user",content:userPrefixedMessage});
-    messages.push({role:"user",content:"请用 JSON 数组格式回复，例如 [\"短句1\", \"短句2\"]，不要输出其他文字。"});
-    let body={ model:settings.modelName, messages, temperature:parseFloat(data.params.temperature), top_p:parseFloat(data.params.topP), max_tokens:parseInt(data.params.maxTokens) };
-    let res=await fetch(`${settings.baseUrl}/chat/completions`,{ method:"POST", headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${settings.apiKey}` }, body:JSON.stringify(body) });
-    if(!res.ok) throw new Error(`API错误: ${res.status}`);
-    let json=await res.json();
-    let content=json.choices[0].message.content;
-    let match=content.match(/\[[\s\S]*?\]/);
-    if(match) content=match[0];
-    let bubbles=JSON.parse(content);
-    if(!Array.isArray(bubbles)) throw new Error("返回不是数组");
-    return bubbles.filter(b=>typeof b==='string' && b.trim()).slice(0,5);
+// ======================= 智能拆分函数（按换行→标点，合并过短短句，并分离转账） =======================
+function splitNaturalResponse(text) {
+    if(!text || !text.trim()) return [];
+    // 提取转账标记（完整匹配）
+    const transferRegex = /🧧TRANSFER\|[\d.]+?\|[^🧧]*?🧧/g;
+    let transfers = [];
+    let cleanedText = text;
+    let match;
+    while ((match = transferRegex.exec(text)) !== null) {
+        transfers.push(match[0]);
+        cleanedText = cleanedText.replace(match[0], '');
+    }
+    // 按换行拆分
+    let parts = cleanedText.split(/\n+/).filter(p => p.trim());
+    if(parts.length === 0) parts = [cleanedText];
+    // 如果没有换行，按标点拆分
+    if(parts.length === 1 && parts[0].length > 30) {
+        let sentences = parts[0].split(/(?<=[。！？])/g).filter(s => s.trim());
+        if(sentences.length > 1) parts = sentences;
+    }
+    // 合并过短的句子（长度<5）
+    let merged = [];
+    for(let p of parts) {
+        p = p.trim();
+        if(!p) continue;
+        if(merged.length > 0 && p.length < 5) {
+            merged[merged.length-1] += p;
+        } else {
+            merged.push(p);
+        }
+    }
+    // 如果整段很短，不拆分
+    if(merged.length === 0) return [];
+    if(text.length < 30) return [text.trim()];
+    // 将转账标记插入到合适位置（通常放在最后，但如果有上下文可调整；这里简单放在末尾）
+    let result = merged.filter(s => s.trim());
+    if(transfers.length) {
+        for(let trans of transfers) result.push(trans);
+    }
+    return result;
 }
+
+// ======================= 修改后的 callDeepSeekBubbles（移除JSON强制，返回文本并智能拆分） =======================
+async function callDeepSeekBubbles(userPrefixedMessage, historyOverride=null, extraSystem=""){
+    let settings = getApiSettings();
+    if(!settings.apiKey) throw new Error("请先设置 API Key");
+    let data = getCurrentData();
+    let systemContent = buildBaseSystemPrompt() + extraSystem;
+    let messages = [{role:"system", content: systemContent}];
+    let history = historyOverride || getContextMessages();
+    for(let m of history){
+        if(m.role === "user") messages.push({role:"user", content: m.content});
+        else if(m.role === "assistant") messages.push({role:"assistant", content: m.content});
+    }
+    if(userPrefixedMessage) messages.push({role:"user", content: userPrefixedMessage});
+    // 不再追加 JSON 强制指令
+    let body = {
+        model: settings.modelName,
+        messages,
+        temperature: parseFloat(data.params.temperature),
+        top_p: parseFloat(data.params.topP),
+        max_tokens: parseInt(data.params.maxTokens)
+    };
+    let res = await fetch(`${settings.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${settings.apiKey}`
+        },
+        body: JSON.stringify(body)
+    });
+    if(!res.ok) throw new Error(`API错误: ${res.status}`);
+    let json = await res.json();
+    let content = json.choices[0].message.content;
+    // 智能拆分成气泡数组
+    let bubbles = splitNaturalResponse(content);
+    if(!bubbles.length) bubbles = [content.trim()];
+    return bubbles.filter(b => typeof b === 'string' && b.trim()).slice(0, 8);
+}
+
+// ======================= 添加气泡（保持逐条显示，但不强制拆分） =======================
 async function addAiBubblesSequentially(bubbles){
-    let data=getCurrentData();
-    for(let i=0;i<bubbles.length;i++){
-        let newMsg={ id:generateMsgId(), role:"ai", content:bubbles[i], timestamp:Date.now()+i*100, versions:[bubbles[i]], currentVersionIndex:0 };
+    let data = getCurrentData();
+    for(let i = 0; i < bubbles.length; i++){
+        let newMsg = {
+            id: generateMsgId(),
+            role: "ai",
+            content: bubbles[i],
+            timestamp: Date.now() + i * 100,
+            versions: [bubbles[i]],
+            currentVersionIndex: 0
+        };
         data.messages.push(newMsg);
         saveAll();
         renderChat();
-        await new Promise(r=>setTimeout(r,400));
+        // 延迟模拟打字，但比之前快一点
+        let delay = i === 0 ? 400 : 150;
+        await new Promise(r => setTimeout(r, delay));
         scrollChatBottom();
     }
     await checkAutoSummary();
 }
-async function checkAutoSummary(){
-    let data=getCurrentData();
-    if(!data.params.autoMemEnable) return;
-    data.msgSinceLastSummary=(data.msgSinceLastSummary||0)+1;
-    if(data.msgSinceLastSummary>=data.params.autoMemInterval){
-        await summarizeLongTermMemory(true);
-        data.msgSinceLastSummary=0;
-        saveAll();
-    }
-    saveAll();
-}
-async function summarizeLongTermMemory(silent=false){
-    let data=getCurrentData();
-    if(data.messages.length<10){ if(!silent) showToast("对话内容太少，无法总结"); return; }
-    if(!silent) showToast("正在总结记忆...");
-    let recent=data.messages.slice(-30).map(m=>`${m.role==='user'?'我':currentRole}: ${m.content}`).join("\n");
-    let oldMem=data.longMemories.join("\n");
-    let prompt=`根据以下最近的对话内容，以及已有的长期记忆，提炼出需要长期记住的用户偏好、关系、重要事件等。输出JSON数组格式，每个元素是一条记忆字符串。\n已有记忆：${oldMem||"无"}\n最近对话：\n${recent}`;
-    let config=getMemorySummaryApiConfig();
-    if(!config.apiKey){ if(!silent) showToast("未配置任何 API Key，无法总结"); return; }
-    try{
-        let res=await fetch(`${config.baseUrl}/chat/completions`,{ method:"POST", headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${config.apiKey}` }, body:JSON.stringify({ model:config.model, messages:[{role:"system",content:"你是记忆管理助手，输出JSON数组。"},{role:"user",content:prompt}], temperature:config.temperature, max_tokens:config.maxTokens }) });
-        if(!res.ok) throw new Error(`API错误: ${res.status}`);
-        let json=await res.json();
-        let content=json.choices[0].message.content;
-        let match=content.match(/\[[\s\S]*?\]/);
-        if(match) content=match[0];
-        let newMemories=JSON.parse(content);
-        if(Array.isArray(newMemories)){
-            for(let txt of newMemories){
-                if(!data.memoryFacts.some(f=>f.text===txt)) data.memoryFacts.push({ id:generateMsgId(), text:txt, timestamp:Date.now(), importance:0.7 });
-            }
-            data.longMemories=[...new Set([...data.longMemories,...newMemories])];
-            saveAll();
-            if(!silent) showToast("记忆总结完成");
-            if(currentEditRole && document.getElementById("editMemoryFactsList")) renderEditMemoryFacts();
-        }
-    }catch(e){ if(!silent) showToast("总结失败: "+e.message); }
-}
 
-async function sendMessage(text,skipActiveReset=false){
+// ======================= 发送消息（适配新版） =======================
+async function sendMessage(text, skipActiveReset=false){
     if(!text.trim() || isWaitingForAI) return;
     updateLocationAuto();
     let data=getCurrentData();
@@ -1609,7 +1685,8 @@ function enterMultiSelectMode(defaultId=null){
         const modalTitle=document.getElementById("modalTitle");
         const modalBody=document.getElementById("modalBody");
         modalTitle.innerText="确认删除";
-        modalBody.innerHTML=`确定要删除选中的 ${selectedMsgIds.size} 条消息吗？<br>如果包含用户消息，该消息及之后的所有内容都会被删除。`;
+        // 修改后的文案：去掉关于用户消息的特殊说明
+        modalBody.innerHTML=`确定要删除选中的 ${selectedMsgIds.size} 条消息吗？`;
         modal.style.display="flex";
         const confirmBtn=document.getElementById("modalConfirmBtn");
         const cancelBtn=document.getElementById("modalCancelBtn");
@@ -1763,12 +1840,12 @@ function renderChat(){
         }
     }
     container.innerHTML=html;
-    document.querySelectorAll('.regenerate-icon').forEach(icon=>icon.onclick=e=>{ e.stopPropagation(); regenerateAiMessage(parseInt(icon.dataset.id)); });
-    document.querySelectorAll('.version-arrow').forEach(arrow=>arrow.onclick=e=>{ e.stopPropagation(); switchVersion(parseInt(arrow.dataset.id),parseInt(arrow.dataset.delta)); });
+    document.querySelectorAll('.regenerate-icon').forEach(icon=>icon.onclick=e=>{ e.stopPropagation(); regenerateAiMessage(icon.dataset.id); });
+    document.querySelectorAll('.version-arrow').forEach(arrow=>arrow.onclick=e=>{ e.stopPropagation(); switchVersion(arrow.dataset.id,parseInt(arrow.dataset.delta)); });
     if(multiSelectMode){
-        document.querySelectorAll('.message-checkbox').forEach(chk=>chk.onclick=e=>{ e.stopPropagation(); toggleSelectMessage(parseInt(chk.dataset.id)); });
+        document.querySelectorAll('.message-checkbox').forEach(chk=>chk.onclick=e=>{ e.stopPropagation(); toggleSelectMessage(chk.dataset.id); });
     }else{
-        // 使用 touchstart 定时器方案彻底阻止系统菜单
+        // 长按菜单逻辑保持不变（与之前相同，省略部分代码以节省长度，原有功能完整）
         let longPressTimer = null;
         let startX, startY;
         const resetLongPress = () => {
@@ -1780,7 +1857,7 @@ function renderChat(){
         document.querySelectorAll('.message-row').forEach(row=>{
             const msgDiv=row.querySelector('.message');
             if(!msgDiv) return;
-            const msgId=parseInt(row.dataset.msgId);
+            const msgId=row.dataset.msgId;
             const role=row.dataset.role;
             const content=msgDiv.dataset.content;
             const type=msgDiv.dataset.type;
@@ -1807,7 +1884,6 @@ function renderChat(){
             });
             row.addEventListener('touchend', resetLongPress);
             row.addEventListener('touchcancel', resetLongPress);
-            // 保留 contextmenu 作为备选（PC端）
             row.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 showContextMenu(e, msgId, role, content, type, imageUrl);
@@ -1981,7 +2057,7 @@ function performSearch(keyword){
         html+=`<div class="search-result-item" data-msg-id="${msg.id}" data-msg-index="${res.index}"><div class="result-preview">${preview}</div><div class="result-meta"><span>${roleLabel}</span><span>${timestamp}</span></div></div>`;
     }
     container.innerHTML=html;
-    document.querySelectorAll(".search-result-item").forEach(el=>{ el.addEventListener("click",()=>{ const msgId=parseInt(el.dataset.msgId); jumpToMessage(msgId); closeSearchModal(); }); });
+    document.querySelectorAll(".search-result-item").forEach(el=>{ el.addEventListener("click",()=>{ const msgId=el.dataset.msgId; jumpToMessage(msgId); closeSearchModal(); }); });
 }
 function escapeRegex(str){ return str.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
 function jumpToMessage(msgId){
@@ -2395,6 +2471,46 @@ setupCollapsibles();
 updateRoleDisplay();
 if(getCurrentData().activeMsg.enabled) startActiveMsgTimer();
 showPage("homePage");
+
+async function checkAutoSummary(){
+    let data=getCurrentData();
+    if(!data.params.autoMemEnable) return;
+    data.msgSinceLastSummary=(data.msgSinceLastSummary||0)+1;
+    if(data.msgSinceLastSummary>=data.params.autoMemInterval){
+        await summarizeLongTermMemory(true);
+        data.msgSinceLastSummary=0;
+        saveAll();
+    }
+    saveAll();
+}
+async function summarizeLongTermMemory(silent=false){
+    let data=getCurrentData();
+    if(data.messages.length<10){ if(!silent) showToast("对话内容太少，无法总结"); return; }
+    if(!silent) showToast("正在总结记忆...");
+    let recent=data.messages.slice(-30).map(m=>`${m.role==='user'?'我':currentRole}: ${m.content}`).join("\n");
+    let oldMem=data.longMemories.join("\n");
+    let prompt=`根据以下最近的对话内容，以及已有的长期记忆，提炼出需要长期记住的用户偏好、关系、重要事件等。输出JSON数组格式，每个元素是一条记忆字符串。\n已有记忆：${oldMem||"无"}\n最近对话：\n${recent}`;
+    let config=getMemorySummaryApiConfig();
+    if(!config.apiKey){ if(!silent) showToast("未配置任何 API Key，无法总结"); return; }
+    try{
+        let res=await fetch(`${config.baseUrl}/chat/completions`,{ method:"POST", headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${config.apiKey}` }, body:JSON.stringify({ model:config.model, messages:[{role:"system",content:"你是记忆管理助手，输出JSON数组。"},{role:"user",content:prompt}], temperature:config.temperature, max_tokens:config.maxTokens }) });
+        if(!res.ok) throw new Error(`API错误: ${res.status}`);
+        let json=await res.json();
+        let content=json.choices[0].message.content;
+        let match=content.match(/\[[\s\S]*?\]/);
+        if(match) content=match[0];
+        let newMemories=JSON.parse(content);
+        if(Array.isArray(newMemories)){
+            for(let txt of newMemories){
+                if(!data.memoryFacts.some(f=>f.text===txt)) data.memoryFacts.push({ id:generateMsgId(), text:txt, timestamp:Date.now(), importance:0.7 });
+            }
+            data.longMemories=[...new Set([...data.longMemories,...newMemories])];
+            saveAll();
+            if(!silent) showToast("记忆总结完成");
+            if(currentEditRole && document.getElementById("editMemoryFactsList")) renderEditMemoryFacts();
+        }
+    }catch(e){ if(!silent) showToast("总结失败: "+e.message); }
+}
 </script>
 </body>
 </html>
