@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SullyOS Lite · 双模型记忆版</title>
+    <title>DobbyChat · 智能角色陪伴</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
     <style>
+        /* ========== 基础变量（深色模式默认） ========== */
         :root {
             --msg-font-size: 16px;
             --bubble-radius: 12px;
@@ -16,6 +17,59 @@
             --user-text-color: #000000;
             --ai-bubble-bg: #eeeeee;
             --ai-text-color: #000000;
+        }
+        /* 深色模式（默认） */
+        :root,
+        .theme-dark {
+            --page-bg: rgba(20,20,25,0.85);
+            --card-bg: rgba(255,255,245,0.9);
+            --card-text: #1f1f2f;
+            --input-bg: white;
+            --input-text: #111;
+            --input-placeholder: #888;
+            --send-btn-bg: var(--user-bubble-bg);
+            --send-btn-color: var(--user-text-color);
+            --send-btn-disabled: #aaa;
+            --border-light: #ccc;
+            --header-bg: transparent;
+            --back-home-bg: rgba(255,255,240,0.9);
+            --back-home-color: #1f1f2f;
+            --icon-color: white;
+            --modal-bg: #1c1c1e;
+            --modal-text: white;
+            --chat-input-area-bg: rgba(0,0,0,0.5);
+            --chat-input-area-backdrop: blur(12px);
+            --timestamp-bg: rgba(255,255,255,0.85);
+            --timestamp-color: #555;
+            --context-menu-bg: #2c2c2e;
+            --context-menu-text: white;
+            --multi-select-bar-bg: rgba(28,28,30,0.95);
+        }
+        /* 浅色模式 */
+        .theme-light {
+            --page-bg: #f8f6f2;
+            --card-bg: #ffffff;
+            --card-text: #1f1f2f;
+            --input-bg: #ffffff;
+            --input-text: #111;
+            --input-placeholder: #aaa;
+            --send-btn-bg: #007aff;
+            --send-btn-color: white;
+            --send-btn-disabled: #ccc;
+            --border-light: #e8e8e8;
+            --header-bg: transparent;
+            --back-home-bg: #e0e0e0;
+            --back-home-color: #333;
+            --icon-color: #333;
+            --modal-bg: white;
+            --modal-text: #111;
+            --chat-input-area-bg: rgba(255,255,255,0.9);
+            --chat-input-area-backdrop: blur(4px);
+            --timestamp-bg: rgba(0,0,0,0.08);
+            --timestamp-color: #666;
+            --context-menu-bg: white;
+            --context-menu-text: #111;
+            --multi-select-bar-bg: rgba(255,255,255,0.95);
         }
         * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
         body {
@@ -45,7 +99,7 @@
         .page {
             position: absolute;
             top:0; left:0; width:100%; height:100%;
-            background: rgba(20,20,25,0.85);
+            background: var(--page-bg);
             backdrop-filter: blur(20px);
             z-index:2;
             overflow-y: auto;
@@ -88,14 +142,14 @@
             align-items: center;
             justify-content: space-between;
             margin-bottom: 20px;
-            background: transparent;
+            background: var(--header-bg);
             padding: 8px 12px;
             border-radius: 40px;
             backdrop-filter: blur(10px);
             position: relative;
         }
         .back-home {
-            background: rgba(255,255,240,0.9);
+            background: var(--back-home-bg);
             border: none;
             padding: 6px 12px;
             border-radius: 40px;
@@ -103,6 +157,7 @@
             font-weight: 500;
             font-size: 18px;
             line-height: 1;
+            color: var(--back-home-color);
         }
         .icon-btn {
             background: transparent;
@@ -111,15 +166,15 @@
             cursor: pointer;
             font-size: 20px;
             font-weight: normal;
-            color: white;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            color: var(--icon-color);
+            text-shadow: none;
             transition: opacity 0.1s;
         }
         .icon-btn:active { opacity: 0.6; }
         .page-title {
             font-weight: 600;
-            color: white;
-            text-shadow: 0 1px 2px black;
+            color: var(--icon-color);
+            text-shadow: none;
             text-align: center;
             flex: 1;
             font-size: 18px;
@@ -127,28 +182,28 @@
         .role-display {
             font-size: 20px;
             font-weight: 600;
-            color: white;
+            color: var(--icon-color);
             text-align: center;
             flex: 1;
             letter-spacing: 1px;
-            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            text-shadow: none;
         }
         .role-dropdown-menu {
             position: absolute;
             top: 55px;
             right: 16px;
-            background: rgba(28,28,30,0.95);
+            background: var(--context-menu-bg);
             backdrop-filter: blur(20px);
             border-radius: 16px;
             padding: 8px 0;
             min-width: 140px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.3);
             z-index: 100;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid rgba(0,0,0,0.1);
         }
         .role-dropdown-item {
             padding: 10px 16px;
-            color: white;
+            color: var(--context-menu-text);
             font-size: 15px;
             cursor: pointer;
             transition: background 0.1s;
@@ -156,7 +211,7 @@
             align-items: center;
             gap: 10px;
         }
-        .role-dropdown-item:hover { background: rgba(255,255,255,0.15); }
+        .role-dropdown-item:hover { background: rgba(0,0,0,0.1); }
         .role-dropdown-item.active { background: #007aff; color: white; }
         .role-dropdown-avatar {
             width: 28px;
@@ -181,8 +236,8 @@
         .timestamp {
             text-align: center;
             font-size: 11px;
-            background: rgba(255,255,255,0.85);
-            color: #555;
+            background: var(--timestamp-bg);
+            color: var(--timestamp-color);
             border-radius: 4px;
             padding: 2px 6px;
             width: fit-content;
@@ -213,7 +268,6 @@
             overflow: hidden;
         }
         .avatar.hidden { visibility: hidden; }
-        /* 关键修复：禁用文本选择和长按菜单 */
         .message {
             max-width: 70%;
             padding: 8px 14px;
@@ -271,10 +325,10 @@
         .regenerate-icon {
             cursor: pointer;
             font-size: 18px;
-            color: white;
+            color: var(--icon-color);
             background: transparent;
             padding: 4px 4px;
-            text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+            text-shadow: none;
             transition: opacity 0.1s;
         }
         .regenerate-icon:active { opacity: 0.6; }
@@ -300,36 +354,42 @@
         .chat-input-area {
             display: flex;
             gap: 8px;
-            background: rgba(0,0,0,0.5);
-            padding: 8px;
-            border-radius: 40px;
-            backdrop-filter: blur(12px);
+            background: var(--chat-input-area-bg);
+            backdrop-filter: var(--chat-input-area-backdrop);
+            padding: 8px 12px;
+            border-radius: 30px;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             margin-top: 8px;
         }
         .chat-input {
             flex: 1;
-            background: white;
+            background: var(--input-bg);
             border: none;
             padding: 10px 16px;
-            border-radius: 32px;
+            border-radius: 30px;
             outline: none;
-            font-size: 15px;
+            font-size: 16px;
+            color: var(--input-text);
+        }
+        .chat-input::placeholder {
+            color: var(--input-placeholder);
         }
         .send-btn {
-            background: var(--user-bubble-bg);
+            background: var(--send-btn-bg);
             border: none;
-            color: var(--user-text-color);
+            color: var(--send-btn-color);
             padding: 0 16px;
-            border-radius: 40px;
+            border-radius: 30px;
             font-weight: 600;
             cursor: pointer;
             font-size: 18px;
             line-height: 36px;
             text-align: center;
-            transition: background 0.2s;
+            transition: background 0.2s, opacity 0.2s;
         }
         .send-btn:disabled {
-            background: #aaa;
+            background: var(--send-btn-disabled);
             cursor: not-allowed;
             opacity: 0.7;
         }
@@ -343,7 +403,7 @@
             width: 18px;
             height: 18px;
             margin-right: 8px;
-            border: 2px solid var(--user-text-color);
+            border: 2px solid var(--send-btn-color);
             border-top-color: transparent;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
@@ -354,7 +414,7 @@
         .image-upload-btn {
             background: transparent;
             border: none;
-            color: white;
+            color: var(--icon-color);
             font-size: 24px;
             cursor: pointer;
             padding: 0 8px;
@@ -402,17 +462,19 @@
             color: rgba(255,255,255,0.7);
         }
         .card-list {
-            background: rgba(255,255,245,0.9);
+            background: var(--card-bg);
             border-radius: 24px;
             padding: 12px;
             margin-bottom: 20px;
+            color: var(--card-text);
+            border: 1px solid var(--border-light);
         }
         .item-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 8px 0;
-            border-bottom: 1px solid #ccc;
+            border-bottom: 1px solid var(--border-light);
         }
         button, .small-btn {
             background: #2c2c30;
@@ -426,14 +488,15 @@
         .danger-btn { background: #ff3b30; }
         input, textarea, select {
             border-radius: 20px;
-            border: 1px solid #aaa;
+            border: 1px solid var(--border-light);
             padding: 8px 12px;
-            background: white;
+            background: var(--input-bg);
+            color: var(--input-text);
         }
         textarea { min-height: 100px; resize: vertical; }
         .flex-between { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
         .tab-bar { display: flex; gap: 10px; margin-bottom: 16px; }
-        .tab-btn { background: #3a3a3e; padding: 6px 16px; border-radius: 30px; cursor: pointer; }
+        .tab-btn { background: #3a3a3e; padding: 6px 16px; border-radius: 30px; cursor: pointer; color: white; }
         .tab-btn.active { background: #007aff; }
         .toast-msg {
             position: fixed;
@@ -451,13 +514,14 @@
         .setting-row { margin-bottom: 15px; }
         .setting-label { font-weight: 600; margin-bottom: 6px; display: block; }
         .role-card {
-            background: rgba(255,255,245,0.9);
+            background: var(--card-bg);
             border-radius: 24px;
             padding: 12px;
             margin-bottom: 12px;
             display: flex;
             align-items: center;
             gap: 12px;
+            border: 1px solid var(--border-light);
         }
         .role-avatar {
             width: 44px;
@@ -481,11 +545,11 @@
             z-index: 300;
         }
         .modal-content {
-            background: #1c1c1e;
+            background: var(--modal-bg);
             border-radius: 28px;
             width: 320px;
             padding: 20px;
-            color: white;
+            color: var(--modal-text);
             max-height: 90%;
             overflow-y: auto;
         }
@@ -496,30 +560,32 @@
             margin-bottom: 10px;
             padding-left: 4px;
             border-left: 4px solid #ff9f0a;
-            color: white;
+            color: var(--card-text);
         }
         .hot-list {
-            background: rgba(255,255,245,0.9);
+            background: var(--card-bg);
             border-radius: 20px;
             padding: 8px 0;
+            border: 1px solid var(--border-light);
         }
         .hot-item {
             padding: 8px 12px;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--border-light);
             font-size: 13px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            color: var(--card-text);
         }
         .hot-time {
             font-size: 12px;
-            color: #888;
+            color: var(--timestamp-color);
             margin-bottom: 12px;
             text-align: center;
         }
         .context-menu {
             position: fixed;
-            background: #2c2c2e;
+            background: var(--context-menu-bg);
             border-radius: 12px;
             padding: 8px 0;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
@@ -527,23 +593,24 @@
             display: flex;
             flex-direction: column;
             min-width: 140px;
+            border: 1px solid var(--border-light);
         }
         .context-menu div {
             padding: 10px 16px;
-            color: white;
+            color: var(--context-menu-text);
             cursor: pointer;
             font-size: 14px;
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        .context-menu div:hover { background: #3a3a3c; }
+        .context-menu div:hover { background: rgba(0,0,0,0.1); }
         .multi-select-bar {
             position: fixed;
             bottom: 20px;
             left: 20px;
             right: 20px;
-            background: rgba(28,28,30,0.95);
+            background: var(--multi-select-bar-bg);
             backdrop-filter: blur(20px);
             border-radius: 40px;
             padding: 10px 20px;
@@ -553,13 +620,15 @@
             z-index: 350;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             font-size: 14px;
-            color: white;
+            color: var(--context-menu-text);
+            border: 1px solid var(--border-light);
         }
         .schedule-item {
             font-size: 13px;
             margin: 6px 0;
             padding-left: 8px;
             border-left: 2px solid #ff9f0a;
+            color: var(--card-text);
         }
         .expand-btn {
             background: rgba(0,0,0,0.5);
@@ -578,8 +647,7 @@
         }
         .collapsible.hidden { display: none; }
         .debug-log-page {
-            background: rgba(20,20,25,0.95);
-            backdrop-filter: blur(20px);
+            background: var(--page-bg);
         }
         .debug-log-container {
             flex: 1;
@@ -711,6 +779,54 @@
             font-size: 13px;
         }
         .theme-btn.active { background: #007aff; }
+        .mode-switch {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+        .switch-label {
+            font-weight: 500;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 28px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: 0.3s;
+            border-radius: 28px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #007aff;
+        }
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
     </style>
 </head>
 <body>
@@ -736,7 +852,7 @@
         <div class="chat-messages" id="chatMessagesContainer"></div>
         <div class="chat-input-area">
             <input type="text" id="messageInput" class="chat-input" placeholder="输入消息...">
-            <button id="sendMessageBtn" class="send-btn">发送</button>
+            <button id="sendMessageBtn" class="send-btn">↑</button>
             <button id="imageUploadBtn" class="image-upload-btn">➕</button>
         </div>
     </div>
@@ -799,6 +915,15 @@
     <div id="settingsPage" class="page">
         <div class="header"><button class="back-home" data-home>←</button><div class="page-title">⚙️ 设置</div></div>
         <div class="card-list">
+            <div class="mode-switch">
+                <span class="switch-label">深色模式</span>
+                <label class="switch">
+                    <input type="checkbox" id="darkModeToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+        <div class="card-list">
             <h4>💬 聊天样式</h4>
             <div class="theme-buttons"><button class="theme-btn" data-theme="wechat">微信经典</button><button class="theme-btn" data-theme="kakao">KakaoTalk</button><button class="theme-btn" data-theme="dark">深色质感</button><button class="theme-btn" data-theme="cherry">云栖早樱</button></div>
             <div><label>字体大小：<span id="fontSizeValue">16</span>px</label><input type="range" id="fontSizeSlider" min="14" max="20" step="1" value="16"></div>
@@ -837,6 +962,7 @@ const API_SETTINGS_KEY = "sullyos_api_settings";
 const SECONDARY_SETTINGS_KEY = "sullyos_secondary_settings";
 const VISION_SETTINGS_KEY = "sullyos_vision_settings";
 const THEME_SETTINGS_KEY = "app_theme_settings";
+const MODE_SETTINGS_KEY = "app_mode_settings";
 const MAX_VERSIONS = 10;
 let multiSelectMode = false;
 let selectedMsgIds = new Set();
@@ -855,6 +981,12 @@ const themes = {
     dark: { name: "深色质感", userBg: "#232525", userText: "#ffffff", aiBg: "#3C3C3C", aiText: "#ffffff", fontSize: 15, borderRadius: 20 },
     cherry: { name: "云栖早樱", userBg: "#ffe6f2", userText: "#000000", aiBg: "#e8f4ff", aiText: "#000000", fontSize: 15, borderRadius: 18 }
 };
+
+// 生成唯一消息ID
+function generateMsgId() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+}
 
 function loadThemeSettings() {
     let saved = localStorage.getItem(THEME_SETTINGS_KEY);
@@ -890,6 +1022,33 @@ function applyTheme(themeName){ let theme=themes[themeName]; if(theme){ applyThe
 function updateFontSize(v){ document.documentElement.style.setProperty('--msg-font-size', v+'px'); let theme=JSON.parse(localStorage.getItem(THEME_SETTINGS_KEY)||'{}'); theme.fontSize=v; localStorage.setItem(THEME_SETTINGS_KEY,JSON.stringify(theme)); document.getElementById("fontSizeValue").innerText=v; }
 function updateBorderRadius(v){ document.documentElement.style.setProperty('--bubble-radius', v+'px'); let theme=JSON.parse(localStorage.getItem(THEME_SETTINGS_KEY)||'{}'); theme.borderRadius=v; localStorage.setItem(THEME_SETTINGS_KEY,JSON.stringify(theme)); document.getElementById("borderRadiusValue").innerText=v; }
 function resetTheme(){ applyTheme('wechat'); }
+
+// 深色/浅色模式管理（开关开启=深色模式）
+function loadModePreference() {
+    let saved = localStorage.getItem(MODE_SETTINGS_KEY);
+    let isDark = saved === null ? true : saved === "dark";
+    if (isDark) {
+        document.documentElement.classList.remove("theme-light");
+        document.documentElement.classList.add("theme-dark");
+        document.getElementById("darkModeToggle").checked = true;
+    } else {
+        document.documentElement.classList.remove("theme-dark");
+        document.documentElement.classList.add("theme-light");
+        document.getElementById("darkModeToggle").checked = false;
+    }
+}
+function toggleDarkMode() {
+    let isDark = document.getElementById("darkModeToggle").checked;
+    if (isDark) {
+        document.documentElement.classList.remove("theme-light");
+        document.documentElement.classList.add("theme-dark");
+        localStorage.setItem(MODE_SETTINGS_KEY, "dark");
+    } else {
+        document.documentElement.classList.remove("theme-dark");
+        document.documentElement.classList.add("theme-light");
+        localStorage.setItem(MODE_SETTINGS_KEY, "light");
+    }
+}
 
 let consoleLogs = [];
 const maxLogEntries=1000;
@@ -933,7 +1092,14 @@ function getCurrentData(){
     if(d.activeMsg.lastCheckDate!==todayStr){ d.activeMsg.lastCheckDate=todayStr; d.activeMsg.sentToday=0; }
     return d;
 }
-function saveAll(){ localStorage.setItem("sullyos_data", JSON.stringify({ roles, roleData, lastActiveDate, activeMsgCountToday, globalWallpaper })); }
+function saveAll(){
+    try {
+        localStorage.setItem("sullyos_data", JSON.stringify({ roles, roleData, lastActiveDate, activeMsgCountToday, globalWallpaper }));
+    } catch (e) {
+        console.error("保存失败:", e);
+        showToast("保存失败，可能存储空间已满，请尝试导出备份后清理数据");
+    }
+}
 function loadAll(){
     let raw=localStorage.getItem("sullyos_data");
     if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; if(msg.apiContent===undefined && msg.role==="user" && msg.content) msg.apiContent=msg.content; } } } }
@@ -953,13 +1119,15 @@ function loadAll(){
     const visionModel=document.getElementById("visionModel"); if(visionModel) visionModel.value=visionSettings.model;
     const cloudName=document.getElementById("cloudName"); if(cloudName) cloudName.value=visionSettings.cloudName;
     const uploadPreset=document.getElementById("uploadPreset"); if(uploadPreset) uploadPreset.value=visionSettings.uploadPreset;
-    toggleVisionSettingsUI(); updateImageUploadButtonVisibility();
+    toggleVisionSettingsUI();
+    updateImageUploadButtonVisibility(); // 根据配置显示/隐藏按钮
     if(globalWallpaper) document.getElementById("wallpaperBg").style.backgroundImage=`url(${globalWallpaper})`;
     else document.getElementById("wallpaperBg").style.backgroundImage="url('https://picsum.photos/id/104/800/1200')";
     let curData=getCurrentData();
     if(curData.activeMsg && curData.activeMsg.lastUserMsgTime) lastUserMessageTime=curData.activeMsg.lastUserMsgTime;
     else{ lastUserMessageTime=Date.now(); if(curData.activeMsg) curData.activeMsg.lastUserMsgTime=lastUserMessageTime; saveAll(); }
     updateRoleDropdownMenu(); loadThemeSettings();
+    loadModePreference();
 }
 
 function getApiSettings(){ let s=localStorage.getItem(API_SETTINGS_KEY); return s?JSON.parse(s):{ apiKey:"", baseUrl:"https://api.deepseek.com/v1", modelName:"deepseek-chat" }; }
@@ -967,9 +1135,26 @@ function saveApiSettings(){ let settings={ apiKey:document.getElementById("apiKe
 function loadApiSettingsUI(){ let s=getApiSettings(); document.getElementById("apiKeyInput").value=s.apiKey||""; document.getElementById("baseUrlInput").value=s.baseUrl||"https://api.deepseek.com/v1"; document.getElementById("modelNameInput").value=s.modelName||"deepseek-chat"; }
 function saveSecondarySettings(){ secondarySettings.enabled=document.getElementById("secondaryApiEnabled").checked; secondarySettings.apiKey=document.getElementById("secondaryApiKey").value; secondarySettings.baseUrl=document.getElementById("secondaryBaseUrl").value; secondarySettings.model=document.getElementById("secondaryModelName").value; secondarySettings.temperature=parseFloat(document.getElementById("secondaryTemperature").value); secondarySettings.maxTokens=parseInt(document.getElementById("secondaryMaxTokens").value); localStorage.setItem(SECONDARY_SETTINGS_KEY,JSON.stringify(secondarySettings)); showToast("副模型设置已保存"); toggleSecondarySettingsUI(); }
 function toggleSecondarySettingsUI(){ let div=document.getElementById("secondaryApiSettings"); if(div) div.style.display=document.getElementById("secondaryApiEnabled").checked?"block":"none"; }
-function saveVisionSettings(){ visionSettings.enabled=document.getElementById("visionApiEnabled").checked; visionSettings.apiKey=document.getElementById("visionApiKey").value; visionSettings.model=document.getElementById("visionModel").value; visionSettings.cloudName=document.getElementById("cloudName").value; visionSettings.uploadPreset=document.getElementById("uploadPreset").value; localStorage.setItem(VISION_SETTINGS_KEY,JSON.stringify(visionSettings)); showToast("识图设置已保存"); toggleVisionSettingsUI(); updateImageUploadButtonVisibility(); }
+function saveVisionSettings(){
+    visionSettings.enabled=document.getElementById("visionApiEnabled").checked;
+    visionSettings.apiKey=document.getElementById("visionApiKey").value;
+    visionSettings.model=document.getElementById("visionModel").value;
+    visionSettings.cloudName=document.getElementById("cloudName").value;
+    visionSettings.uploadPreset=document.getElementById("uploadPreset").value;
+    localStorage.setItem(VISION_SETTINGS_KEY,JSON.stringify(visionSettings));
+    showToast("识图设置已保存");
+    toggleVisionSettingsUI();
+    updateImageUploadButtonVisibility();
+}
 function toggleVisionSettingsUI(){ let div=document.getElementById("visionApiSettings"); if(div) div.style.display=document.getElementById("visionApiEnabled").checked?"block":"none"; }
-function updateImageUploadButtonVisibility(){}
+function updateImageUploadButtonVisibility(){
+    const btn = document.getElementById("imageUploadBtn");
+    if(btn){
+        // 只有识图功能启用且必要的配置填写完整时才显示按钮
+        const hasConfig = visionSettings.enabled && visionSettings.apiKey && visionSettings.cloudName && visionSettings.uploadPreset;
+        btn.style.display = hasConfig ? "block" : "none";
+    }
+}
 function getMemorySummaryApiConfig(){ if(secondarySettings.enabled && secondarySettings.apiKey && secondarySettings.baseUrl && secondarySettings.model) return { apiKey:secondarySettings.apiKey, baseUrl:secondarySettings.baseUrl, model:secondarySettings.model, temperature:secondarySettings.temperature, maxTokens:secondarySettings.maxTokens }; let main=getApiSettings(); return { apiKey:main.apiKey, baseUrl:main.baseUrl, model:main.modelName, temperature:0.3, maxTokens:800 }; }
 
 const LOCATION_POOL=["家中卧室","公司练习室","美容室","电视台","录音棚","签售会场","品牌拍摄现场","机场VIP候机厅","酒店房间","健身房","皮肤科诊所","咖啡厅","汉江公园","演唱会后台"];
@@ -1136,7 +1321,7 @@ async function callDeepSeekBubbles(userPrefixedMessage,historyOverride=null,extr
 async function addAiBubblesSequentially(bubbles){
     let data=getCurrentData();
     for(let i=0;i<bubbles.length;i++){
-        let newMsg={ id:Date.now()+i, role:"ai", content:bubbles[i], timestamp:Date.now()+i*100, versions:[bubbles[i]], currentVersionIndex:0 };
+        let newMsg={ id:generateMsgId(), role:"ai", content:bubbles[i], timestamp:Date.now()+i*100, versions:[bubbles[i]], currentVersionIndex:0 };
         data.messages.push(newMsg);
         saveAll();
         renderChat();
@@ -1175,7 +1360,7 @@ async function summarizeLongTermMemory(silent=false){
         let newMemories=JSON.parse(content);
         if(Array.isArray(newMemories)){
             for(let txt of newMemories){
-                if(!data.memoryFacts.some(f=>f.text===txt)) data.memoryFacts.push({ id:Date.now()+Math.random(), text:txt, timestamp:Date.now(), importance:0.7 });
+                if(!data.memoryFacts.some(f=>f.text===txt)) data.memoryFacts.push({ id:generateMsgId(), text:txt, timestamp:Date.now(), importance:0.7 });
             }
             data.longMemories=[...new Set([...data.longMemories,...newMemories])];
             saveAll();
@@ -1193,7 +1378,7 @@ async function sendMessage(text,skipActiveReset=false){
     let lastMsgTimestamp=data.messages.length>0?data.messages[data.messages.length-1].timestamp:null;
     let prefix=buildUserMessagePrefix(text,lastMsgTimestamp);
     let prefixedText=prefix+text;
-    let userMsg={ id:Date.now(), role:"user", content:text, apiContent:prefixedText, hasPrefix:true, timestamp:Date.now() };
+    let userMsg={ id:generateMsgId(), role:"user", content:text, apiContent:prefixedText, hasPrefix:true, timestamp:Date.now() };
     data.messages.push(userMsg);
     saveAll();
     renderChat();
@@ -1215,7 +1400,7 @@ async function sendMessage(text,skipActiveReset=false){
         isWaitingForAI=false;
         btn.disabled=false;
         btn.classList.remove("loading");
-        btn.textContent="发送";
+        btn.textContent="↑";
     }
 }
 async function autoGenerateReplyForImage(description){
@@ -1233,7 +1418,7 @@ async function autoGenerateReplyForImage(description){
         let bubbles=await callDeepSeekBubbles(prefixedDesc,null,"");
         await addAiBubblesSequentially(bubbles);
     }catch(e){ showToast("自动回复失败: "+e.message); }
-    finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.textContent="发送"; }
+    finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.textContent="↑"; }
 }
 async function compressImage(file,maxSizeMB=0.8,maxWidthOrHeight=1024){
     return new Promise((resolve,reject)=>{
@@ -1292,7 +1477,7 @@ async function sendImageMessage(file){
         const description=await describeImageWithGLM(imageUrl);
         if(!description) throw new Error("识别结果为空");
         let data=getCurrentData();
-        let imageMsg={ id:Date.now(), role:"user", type:"image", content:description, imageUrl:imageUrl, timestamp:Date.now(), hasPrefix:true, apiContent:description };
+        let imageMsg={ id:generateMsgId(), role:"user", type:"image", content:description, imageUrl:imageUrl, timestamp:Date.now(), hasPrefix:true, apiContent:description };
         data.messages.push(imageMsg);
         saveAll();
         renderChat();
@@ -1314,7 +1499,6 @@ async function regenerateImageDescription(msgId){
     }catch(err){ showToast("重新生成失败: "+err.message); }
 }
 
-// 直接编辑 AI 消息内容（不调用 API）
 async function editAiMessageDirectly(msgId, newText){
     let data=getCurrentData();
     let idx=data.messages.findIndex(m=>m.id===msgId && m.role==="ai");
@@ -1331,7 +1515,6 @@ async function editAiMessageDirectly(msgId, newText){
     showToast("已修改消息");
 }
 
-// 重新生成 AI 消息（原有逻辑）
 async function regenerateAiMessage(msgId){
     let data=getCurrentData();
     let idx=data.messages.findIndex(m=>m.id===msgId && m.role==="ai");
@@ -1493,7 +1676,7 @@ async function autoGenerateReplyAfterDelete(){
             let bubbles=await callDeepSeekBubbles(prefixed,data.messages.slice(0,-1),"");
             await addAiBubblesSequentially(bubbles);
         }catch(e){ showToast("自动回复失败: "+e.message); }
-        finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.textContent="发送"; }
+        finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.textContent="↑"; }
     }
 }
 
@@ -1585,7 +1768,15 @@ function renderChat(){
     if(multiSelectMode){
         document.querySelectorAll('.message-checkbox').forEach(chk=>chk.onclick=e=>{ e.stopPropagation(); toggleSelectMessage(parseInt(chk.dataset.id)); });
     }else{
-        // 使用 contextmenu 统一处理，不再依赖 touchstart 定时器
+        // 使用 touchstart 定时器方案彻底阻止系统菜单
+        let longPressTimer = null;
+        let startX, startY;
+        const resetLongPress = () => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+        };
         document.querySelectorAll('.message-row').forEach(row=>{
             const msgDiv=row.querySelector('.message');
             if(!msgDiv) return;
@@ -1594,7 +1785,29 @@ function renderChat(){
             const content=msgDiv.dataset.content;
             const type=msgDiv.dataset.type;
             const imageUrl=msgDiv.dataset.imageUrl;
-            // 阻止系统上下文菜单并显示自定义菜单
+            row.addEventListener('touchstart', (e) => {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                resetLongPress();
+                longPressTimer = setTimeout(() => {
+                    e.preventDefault();
+                    showContextMenu(e, msgId, role, content, type, imageUrl);
+                    resetLongPress();
+                }, 500);
+            });
+            row.addEventListener('touchmove', (e) => {
+                if (!startX || !startY) return;
+                const moveX = e.touches[0].clientX;
+                const moveY = e.touches[0].clientY;
+                const deltaX = Math.abs(moveX - startX);
+                const deltaY = Math.abs(moveY - startY);
+                if (deltaX > 10 || deltaY > 10) {
+                    resetLongPress();
+                }
+            });
+            row.addEventListener('touchend', resetLongPress);
+            row.addEventListener('touchcancel', resetLongPress);
+            // 保留 contextmenu 作为备选（PC端）
             row.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 showContextMenu(e, msgId, role, content, type, imageUrl);
@@ -1610,8 +1823,10 @@ function showContextMenu(e,msgId,role,content,type,imageUrl){
     if(existing) existing.remove();
     let menu=document.createElement("div");
     menu.className="context-menu";
-    menu.style.left=e.clientX+"px";
-    menu.style.top=e.clientY+"px";
+    let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    menu.style.left=clientX+"px";
+    menu.style.top=clientY+"px";
     let actions=[
         { icon:"📋", label:"复制", action:()=>{ navigator.clipboard.writeText(content); showToast("已复制"); menu.remove(); } },
         { icon:"✏️", label:"编辑", action:async()=>{
@@ -1670,7 +1885,7 @@ async function sendActiveMessage(){
         if(!content) throw new Error("生成内容为空");
         if(content===lastProactiveMessage){ console.log("主动消息内容重复，已丢弃"); showToast("消息与上一条重复，已跳过"); return; }
         lastProactiveMessage=content;
-        let newMsg={ id:Date.now(), role:"ai", content:content, timestamp:Date.now(), versions:[content], currentVersionIndex:0 };
+        let newMsg={ id:generateMsgId(), role:"ai", content:content, timestamp:Date.now(), versions:[content], currentVersionIndex:0 };
         data.messages.push(newMsg);
         data.activeMsg.sentToday++;
         data.activeMsg.consecutiveNoReply++;
@@ -1891,14 +2106,14 @@ function renderEditWorldbook(){
     let items=wb[activeCat]||[];
     container.innerHTML=items.map((it,idx)=>`<div class="item-row">${escapeHtml(it)} <button class="wb-del" data-cat="${activeCat}" data-idx="${idx}">删除</button><button class="wb-edit" data-cat="${activeCat}" data-idx="${idx}">编辑</button></div>`).join('');
     document.querySelectorAll('.wb-del').forEach(btn=>{ btn.onclick=()=>{ let cat=btn.dataset.cat, idx=parseInt(btn.dataset.idx); roleData[currentEditRole].worldbook[cat].splice(idx,1); renderEditWorldbook(); }; });
-    document.querySelectorAll('.wb-edit').forEach(btn=>{ btn.onclick=()=>{ let cat=btn.dataset.cat, idx=parseInt(btn.dataset.idx); let newVal=prompt("编辑", roleData[currentEditRole].worldbook[cat][idx]); if(newVal){ roleData[currentEditRole].worldbook[cat][idx]=newVal; renderEditWorldbook(); } }; });
+    document.querySelectorAll('.wb-edit').forEach(btn=>{ btn.onclick=()=>{ let cat=btn.dataset.cat, idx=parseInt(btn.dataset.idx); let currentVal=roleData[currentEditRole].worldbook[cat][idx]; let newVal=prompt("编辑条目:", currentVal); if(newVal && newVal!==currentVal){ roleData[currentEditRole].worldbook[cat][idx]=newVal; saveAll(); renderEditWorldbook(); } }; });
 }
 function addWorldbookEntry(){ let name=document.getElementById("newWbName").value, cont=document.getElementById("newWbContent").value, cat=document.getElementById("newWbCat").value; if(name||cont){ let entry=`${name}: ${cont}`; if(!roleData[currentEditRole].worldbook[cat]) roleData[currentEditRole].worldbook[cat]=[]; roleData[currentEditRole].worldbook[cat].push(entry); renderEditWorldbook(); document.getElementById("newWbName").value=""; document.getElementById("newWbContent").value=""; } }
 function addMemoryFact(){
     let text=prompt("添加新事实:");
     if(text && text.trim()){
         if(!roleData[currentEditRole].memoryFacts) roleData[currentEditRole].memoryFacts=[];
-        roleData[currentEditRole].memoryFacts.push({ id:Date.now(), text:text.trim(), timestamp:Date.now(), importance:0.7 });
+        roleData[currentEditRole].memoryFacts.push({ id:generateMsgId(), text:text.trim(), timestamp:Date.now(), importance:0.7 });
         saveAll();
         renderEditMemoryFacts();
         showToast("已添加记忆事实");
@@ -2023,7 +2238,7 @@ async function importChatBoxData(file){
                 let content="";
                 if(msg.contentParts && msg.contentParts[0]) content=msg.contentParts[0].text;
                 content=chatBoxTransferToInternal(content);
-                let newMsg={ id:Date.now()+Math.random(), role:msg.role, content:content, timestamp:msg.timestamp||Date.now(), versions:[content], currentVersionIndex:0 };
+                let newMsg={ id:generateMsgId(), role:msg.role, content:content, timestamp:msg.timestamp||Date.now(), versions:[content], currentVersionIndex:0 };
                 if(msg.role==="user"){ newMsg.apiContent=content; newMsg.hasPrefix=false; }
                 newMessages.push(newMsg);
             }
@@ -2156,6 +2371,7 @@ document.getElementById("closeSearchModalBtn").onclick=closeSearchModal;
 document.getElementById("searchKeywordInput").addEventListener("input",e=>performSearch(e.target.value));
 document.getElementById("searchModal").addEventListener("click",e=>{ if(e.target===document.getElementById("searchModal")) closeSearchModal(); });
 document.getElementById("roleDropdownBtn").onclick=toggleRoleDropdown;
+document.getElementById("darkModeToggle").addEventListener("change", toggleDarkMode);
 
 document.getElementById("uploadGlobalWallpaperBtn").onclick=()=>{ handleImageUpload(dataUrl=>{ globalWallpaper=dataUrl; document.getElementById("wallpaperBg").style.backgroundImage=`url(${globalWallpaper})`; saveAll(); showToast("全局背景已更新"); }); };
 document.getElementById("resetGlobalWallpaperBtn").onclick=()=>{ globalWallpaper=""; document.getElementById("wallpaperBg").style.backgroundImage="url('https://picsum.photos/id/104/800/1200')"; saveAll(); showToast("已重置默认背景"); };
