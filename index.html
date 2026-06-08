@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴</title>
+    <title>DobbyChat · 智能角色陪伴 v2.1 - 角色姓名分离，系统信息标记块，人称混淆修复</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -887,7 +887,8 @@
     </div>
     <div id="roleDetailPage" class="page" style="display:none;">
         <div class="header"><button id="backToRolesBtn" class="back-home">←</button><div class="page-title" id="roleDetailTitle">编辑角色</div><button id="deleteRoleBtn" class="danger-btn" style="padding:4px 12px;">删除</button></div>
-        <div class="card-list"><div class="flex-between"><label>角色名</label><input id="editRoleName" placeholder="角色名"></div></div>
+        <div class="card-list"><div class="flex-between"><label>角色显示名（备注）</label><input id="editRoleName" placeholder="显示名"></div></div>
+        <div class="card-list"><div class="flex-between"><label>角色姓名（AI自称）</label><input id="editAiName" placeholder="例如：艾莉、小美"></div><div class="flex-between"><small style="color:gray;">AI 会用此名字指代自己，如“艾莉 位于录音棚”</small></div></div>
         <div class="tab-bar">
             <button class="tab-btn active" data-role-tab="persona">人设</button>
             <button class="tab-btn" data-role-tab="memory">长期事实记忆</button>
@@ -1083,6 +1084,7 @@ function getCurrentData(){
             memoryFacts:[],
             worldbook:{人物:[],地点:[],世界观:[],自定义:[]},
             persona:`你叫${currentRole}，说话简短自然，像朋友聊天。`,
+            aiName: currentRole,  // AI 自称的名字，默认等于显示名
             userPersona:"", avatar:"", userAvatar:"", chatBackground:"",
             lastLocationUpdate:Date.now(),
             params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 },
@@ -1102,6 +1104,7 @@ function getCurrentData(){
     if(!d.messages) d.messages=[];
     if(!d.memoryFacts) d.memoryFacts=[];
     if(!d.activeMsg) d.activeMsg={ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() };
+    if(d.aiName === undefined) d.aiName = currentRole;
     let todayStr=new Date().toDateString();
     if(d.activeMsg.lastCheckDate!==todayStr){ d.activeMsg.lastCheckDate=todayStr; d.activeMsg.sentToday=0; }
     return d;
@@ -1116,7 +1119,7 @@ function saveAll(){
 }
 function loadAll(){
     let raw=localStorage.getItem("sullyos_data");
-    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; if(msg.apiContent===undefined && msg.role==="user" && msg.content) msg.apiContent=msg.content; } } } }
+    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; if(msg.apiContent===undefined && msg.role==="user" && msg.content) msg.apiContent=msg.content; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; } }
     let today=new Date().toDateString();
     if(today!==lastActiveDate){ activeMsgCountToday=0; lastActiveDate=today; saveAll(); }
     let sec=localStorage.getItem(SECONDARY_SETTINGS_KEY); if(sec){ try{ let s=JSON.parse(sec); secondarySettings={...secondarySettings,...s}; }catch(e){} }
@@ -1266,7 +1269,7 @@ function retrieveRelevantMemoryFacts(userMessage){
     return scored.map(s=>s.text);
 }
 
-// ======================= 新版系统提示词（移除强制短句，加入活人感规则 + 多样性 + 历史回响） =======================
+// ======================= 固定 System Prompt（缓存友好） =======================
 function buildBaseSystemPrompt(){
     let data = getCurrentData();
     let transferRule = `\n\n💰 转账规则：如果你要给用户转账，请单独发送一条消息，内容严格为 🧧TRANSFER|金额|备注🧧，例如 🧧TRANSFER|88.88|请你喝奶茶🧧。金额数字保留两位小数，备注最多20字。不要与其他文字混合。`;
@@ -1295,59 +1298,70 @@ function buildBaseSystemPrompt(){
     return `${livingRules}\n\n${data.persona}${transferRule}`;
 }
 
-// ======================= 自然前缀（不再使用方括号系统指令） =======================
-function buildUserMessagePrefix(currentUserMessage, lastMsgTimestamp){
+// ======================= 系统信息标记块（动态，附加在用户消息前） =======================
+function buildSystemInfoBlock(){
     let data = getCurrentData();
     let now = new Date();
     let timeStr = `${now.getMonth()+1}月${now.getDate()}日 ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
     let weekday = ["日","一","二","三","四","五","六"][now.getDay()];
     let season = ["冬","春","夏","秋"][Math.floor(now.getMonth()/3)];
-    let gapText = "";
-    if(lastMsgTimestamp){
-        let gapMin = Math.floor((Date.now() - lastMsgTimestamp) / 60000);
-        if(gapMin >= 1 && gapMin < 60) gapText = `（距离上次聊天过了${gapMin}分钟）`;
-        else if(gapMin >= 60 && gapMin < 1440) gapText = `（距离上次聊天过了${Math.floor(gapMin/60)}小时）`;
-        else if(gapMin >= 1440) gapText = `（距离上次聊天过了${Math.floor(gapMin/1440)}天）`;
+    let lines = [];
+    lines.push(`🔹 系统信息：`);
+    lines.push(`当前时间：${timeStr}，星期${weekday}，${season}天。`);
+    if(data.location) lines.push(`${data.aiName} 目前位于：${data.location}。`);
+    // 距离上次聊天间隔（最后一条消息的时间）
+    let lastMsgTime = data.messages.length > 0 ? data.messages[data.messages.length-1].timestamp : null;
+    if(lastMsgTime){
+        let gapMin = Math.floor((Date.now() - lastMsgTime) / 60000);
+        if(gapMin >= 1 && gapMin < 60) lines.push(`距离上次聊天过了 ${gapMin} 分钟。`);
+        else if(gapMin >= 60 && gapMin < 1440) lines.push(`距离上次聊天过了 ${Math.floor(gapMin/60)} 小时。`);
+        else if(gapMin >= 1440) lines.push(`距离上次聊天过了 ${Math.floor(gapMin/1440)} 天。`);
     }
-    let memoryParts = [];
-    memoryParts.push(`现在是${timeStr}，星期${weekday}，${season}天。`);
-    if(data.location) memoryParts.push(`你目前在${data.location}。`);
-    if(gapText) memoryParts.push(gapText);
-    if(data.userPersona) memoryParts.push(`关于对方：${data.userPersona}`);
+    // 用户设定
+    if(data.userPersona) lines.push(`关于对方：${data.userPersona}`);
+    // 长期记忆（取前3）
     if(data.longMemories && data.longMemories.length > 0){
-        memoryParts.push(`你记得：${data.longMemories.slice(0,3).join("；")}`);
+        lines.push(`你记得：${data.longMemories.slice(0,3).join("；")}`);
     }
+    // 世界书
     if(data.worldbook){
         let wb = data.worldbook;
         let wbParts = [];
         if(wb.人物?.length) wbParts.push(`认识的人：${wb.人物.slice(0,2).join("、")}`);
         if(wb.地点?.length) wbParts.push(`知道的地方：${wb.地点.slice(0,2).join("、")}`);
-        if(wbParts.length) memoryParts.push(wbParts.join("。"));
+        if(wbParts.length) lines.push(wbParts.join("。"));
     }
+    // 日程和热点按需注入（如果用户消息触发了关键词，在外部调用时传入）
+    // 这里只放固定背景信息，日程和热点在 shouldInject 时再追加到 lines 中
+    return lines;
+}
+
+function buildUserMessagePrefix(currentUserMessage, lastMsgTimestamp, scheduleContext="", hotContext=""){
+    let lines = buildSystemInfoBlock();
+    // 追加日程
+    if(scheduleContext) lines.push(scheduleContext);
+    // 追加热点
+    if(hotContext) lines.push(hotContext);
+    // 追加相关记忆检索结果
     let facts = retrieveRelevantMemoryFacts(currentUserMessage);
-    if(facts.length) memoryParts.push(`相关记忆：${facts.join("；")}`);
-    if(shouldInjectSchedule(currentUserMessage)){
-        let schedule = getScheduleContext();
-        if(schedule) memoryParts.push(schedule);
-    }
-    if(shouldInjectHot(currentUserMessage)){
-        let hot = getHotContext();
-        if(hot) memoryParts.push(hot);
-    }
-    let prefix = memoryParts.length > 0 ? `\n\n（${memoryParts.join(" ")}）\n\n` : "";
-    return prefix + currentUserMessage;
+    if(facts.length) lines.push(`相关记忆：${facts.join("；")}`);
+    // 拼接
+    let block = lines.join("\n");
+    let separator = "\n---\n";
+    return block + separator + currentUserMessage;
 }
 
 function shouldInjectSchedule(m){ if(!m) return false; const keys=["行程","计划","安排","干嘛","干啥","去哪里","几点","什么时候","忙不忙","有事吗","接下来","今天","明天","今日","昨日","今天在干嘛","今天做了什么","今天有什么"]; return keys.some(k=>m.includes(k)); }
 function getScheduleContext(){
     let data=getCurrentData();
     let ctx="";
-    if(data.schedule.today.length) ctx+=`\n你的今日剩余行程：${data.schedule.today.map(s=>`${s.time} ${s.act}`).join("；")}`;
-    if(data.schedule.tomorrow.length) ctx+=`\n你的明日计划：${data.schedule.tomorrow.map(s=>`${s.time} ${s.act}`).join("；")}`;
+    if(data.schedule.today.length) ctx+=`\n今日剩余行程：${data.schedule.today.map(s=>`${s.time} ${s.act}`).join("；")}`;
+    if(data.schedule.tomorrow.length) ctx+=`\n明日计划：${data.schedule.tomorrow.map(s=>`${s.time} ${s.act}`).join("；")}`;
     return ctx;
 }
 function shouldInjectHot(m){ if(!m) return false; const keys=["热搜","热点","新闻","大事","瓜","微博","抖音","今日头条","发生了什么","最近有什么"]; return keys.some(k=>m.includes(k)); }
 function getHotContext(){ let h=""; if(latestWeiboHot.length) h+=`\n【微博热搜榜】${latestWeiboHot.slice(0,10).map((h,i)=>`${i+1}. ${h}`).join("；")}`; if(latestDouyinHot.length) h+=`\n【抖音热搜榜】${latestDouyinHot.slice(0,10).map((h,i)=>`${i+1}. ${h}`).join("；")}`; return h; }
+
 function getContextMessages(){
     let data=getCurrentData();
     let range=data.params.contextRange;
@@ -1356,10 +1370,9 @@ function getContextMessages(){
     return msgs.map(msg=>{ if(msg.role==="user") return {role:"user",content:msg.apiContent||msg.content,timestamp:msg.timestamp}; else return {role:"assistant",content:msg.content,timestamp:msg.timestamp}; });
 }
 
-// ======================= 智能拆分函数（按换行→标点，合并过短短句，并分离转账） =======================
+// ======================= 智能拆分函数 =======================
 function splitNaturalResponse(text) {
     if(!text || !text.trim()) return [];
-    // 提取转账标记（完整匹配）
     const transferRegex = /🧧TRANSFER\|[\d.]+?\|[^🧧]*?🧧/g;
     let transfers = [];
     let cleanedText = text;
@@ -1368,15 +1381,12 @@ function splitNaturalResponse(text) {
         transfers.push(match[0]);
         cleanedText = cleanedText.replace(match[0], '');
     }
-    // 按换行拆分
     let parts = cleanedText.split(/\n+/).filter(p => p.trim());
     if(parts.length === 0) parts = [cleanedText];
-    // 如果没有换行，按标点拆分
     if(parts.length === 1 && parts[0].length > 30) {
         let sentences = parts[0].split(/(?<=[。！？])/g).filter(s => s.trim());
         if(sentences.length > 1) parts = sentences;
     }
-    // 合并过短的句子（长度<5）
     let merged = [];
     for(let p of parts) {
         p = p.trim();
@@ -1387,10 +1397,8 @@ function splitNaturalResponse(text) {
             merged.push(p);
         }
     }
-    // 如果整段很短，不拆分
     if(merged.length === 0) return [];
     if(text.length < 30) return [text.trim()];
-    // 将转账标记插入到合适位置（通常放在最后，但如果有上下文可调整；这里简单放在末尾）
     let result = merged.filter(s => s.trim());
     if(transfers.length) {
         for(let trans of transfers) result.push(trans);
@@ -1398,7 +1406,6 @@ function splitNaturalResponse(text) {
     return result;
 }
 
-// ======================= 修改后的 callDeepSeekBubbles（移除JSON强制，返回文本并智能拆分） =======================
 async function callDeepSeekBubbles(userPrefixedMessage, historyOverride=null, extraSystem=""){
     let settings = getApiSettings();
     if(!settings.apiKey) throw new Error("请先设置 API Key");
@@ -1411,7 +1418,6 @@ async function callDeepSeekBubbles(userPrefixedMessage, historyOverride=null, ex
         else if(m.role === "assistant") messages.push({role:"assistant", content: m.content});
     }
     if(userPrefixedMessage) messages.push({role:"user", content: userPrefixedMessage});
-    // 不再追加 JSON 强制指令
     let body = {
         model: settings.modelName,
         messages,
@@ -1430,13 +1436,11 @@ async function callDeepSeekBubbles(userPrefixedMessage, historyOverride=null, ex
     if(!res.ok) throw new Error(`API错误: ${res.status}`);
     let json = await res.json();
     let content = json.choices[0].message.content;
-    // 智能拆分成气泡数组
     let bubbles = splitNaturalResponse(content);
     if(!bubbles.length) bubbles = [content.trim()];
     return bubbles.filter(b => typeof b === 'string' && b.trim()).slice(0, 8);
 }
 
-// ======================= 添加气泡（保持逐条显示） =======================
 async function addAiBubblesSequentially(bubbles){
     let data = getCurrentData();
     for(let i = 0; i < bubbles.length; i++){
@@ -1451,7 +1455,6 @@ async function addAiBubblesSequentially(bubbles){
         data.messages.push(newMsg);
         saveAll();
         renderChat();
-        // 延迟模拟打字
         let delay = i === 0 ? 400 : 150;
         await new Promise(r => setTimeout(r, delay));
         scrollChatBottom();
@@ -1459,18 +1462,18 @@ async function addAiBubblesSequentially(bubbles){
     await checkAutoSummary();
 }
 
-// ======================= 发送消息（修复重复问题：先调API，成功后再保存用户消息） =======================
+// ======================= 发送消息（修复重复问题 + 系统信息标记块） =======================
 async function sendMessage(text, skipActiveReset=false){
     if(!text.trim() || isWaitingForAI) return;
     updateLocationAuto();
     let data=getCurrentData();
     if(!skipActiveReset && data.activeMsg){ data.activeMsg.consecutiveNoReply=0; data.activeMsg.lastUserMsgTime=Date.now(); lastUserMessageTime=data.activeMsg.lastUserMsgTime; saveAll(); }
     let lastMsgTimestamp=data.messages.length>0?data.messages[data.messages.length-1].timestamp:null;
-    let prefix=buildUserMessagePrefix(text,lastMsgTimestamp);
-    let prefixedText=prefix+text;
+    let scheduleCtx = shouldInjectSchedule(text) ? getScheduleContext() : "";
+    let hotCtx = shouldInjectHot(text) ? getHotContext() : "";
+    let prefixedText = buildUserMessagePrefix(text, lastMsgTimestamp, scheduleCtx, hotCtx);
     let userMsg={ id:generateMsgId(), role:"user", content:text, apiContent:prefixedText, hasPrefix:true, timestamp:Date.now() };
     
-    // 不再提前 push，等待 API 成功后再保存
     isWaitingForAI=true;
     let btn=document.getElementById("sendMessageBtn");
     btn.disabled=true;
@@ -1478,16 +1481,13 @@ async function sendMessage(text, skipActiveReset=false){
     btn.textContent = "";
     try{
         let bubbles=await callDeepSeekBubbles(prefixedText,null,"");
-        // API 成功，保存用户消息
         data.messages.push(userMsg);
         saveAll();
         renderChat();
-        // 清空输入框
         document.getElementById("messageInput").value="";
         await addAiBubblesSequentially(bubbles);
     }catch(e){
         showToast("回复失败: "+e.message);
-        // 失败时不保存用户消息，也不生成 AI
     }finally{
         isWaitingForAI=false;
         btn.disabled=false;
@@ -1496,14 +1496,13 @@ async function sendMessage(text, skipActiveReset=false){
     }
 }
 
-// 图片消息专用自动回复（在 sendImageMessage 成功后再调用此函数，用户消息已经保存）
 async function autoGenerateReplyForImage(description, userMsg){
-    // userMsg 已保存，只需生成 AI 回复
     let data=getCurrentData();
     if(isWaitingForAI) return;
     let lastMsgTimestamp=data.messages.length>0?data.messages[data.messages.length-1].timestamp:null;
-    let prefix=buildUserMessagePrefix(description,lastMsgTimestamp);
-    let prefixedDesc=prefix+description;
+    let scheduleCtx = shouldInjectSchedule(description) ? getScheduleContext() : "";
+    let hotCtx = shouldInjectHot(description) ? getHotContext() : "";
+    let prefixedDesc = buildUserMessagePrefix(description, lastMsgTimestamp, scheduleCtx, hotCtx);
     isWaitingForAI=true;
     let btn=document.getElementById("sendMessageBtn");
     btn.disabled=true;
@@ -1565,7 +1564,6 @@ async function describeImageWithGLM(imageUrl){
     throw new Error('未获取到描述');
 }
 
-// 发送图片消息（修改为先完成识别和上传，成功后再保存用户消息并调用 AI）
 async function sendImageMessage(file){
     if(!visionSettings.enabled || !visionSettings.apiKey){ showToast("未启用识图功能或缺少API Key"); return; }
     showToast("处理图片中...");
@@ -1574,14 +1572,11 @@ async function sendImageMessage(file){
         const imageUrl=await uploadToCloudinary(compressedBlob);
         const description=await describeImageWithGLM(imageUrl);
         if(!description) throw new Error("识别结果为空");
-        // 创建图片消息对象（暂不保存）
         let imageMsg={ id:generateMsgId(), role:"user", type:"image", content:description, imageUrl:imageUrl, timestamp:Date.now(), hasPrefix:true, apiContent:description };
-        // 先保存用户消息
         let data=getCurrentData();
         data.messages.push(imageMsg);
         saveAll();
         renderChat();
-        // 再调用 AI 回复
         await autoGenerateReplyForImage(description, imageMsg);
     }catch(err){ console.error(err); showToast("图片处理失败: "+err.message); }
 }
@@ -1661,24 +1656,19 @@ async function switchVersion(msgId,delta){
     renderChat();
 }
 
-// 修改用户消息并重新生成（先调 API，成功后再更新消息内容）
 async function modifyUserMessageAndRegenerate(msgId,newText){
     let data=getCurrentData();
     let idx=data.messages.findIndex(m=>m.id===msgId);
     if(idx===-1) return;
     let oldMsg=data.messages[idx];
     let lastMsgTimestamp=idx>0?data.messages[idx-1].timestamp:null;
-    let prefix=buildUserMessagePrefix(newText,lastMsgTimestamp);
-    let prefixedText=prefix+newText;
-    // 临时保存新内容和旧内容，等 API 成功后再真正修改
-    let originalContent = oldMsg.content;
-    let originalApiContent = oldMsg.apiContent;
-    // 先尝试生成回复
+    let scheduleCtx = shouldInjectSchedule(newText) ? getScheduleContext() : "";
+    let hotCtx = shouldInjectHot(newText) ? getHotContext() : "";
+    let prefixedText = buildUserMessagePrefix(newText, lastMsgTimestamp, scheduleCtx, hotCtx);
     if(isWaitingForAI) return;
     isWaitingForAI=true;
     try{
         let bubbles=await callDeepSeekBubbles(prefixedText,data.messages.slice(0,idx),"");
-        // API 成功，现在更新用户消息并截断后续
         oldMsg.content=newText;
         oldMsg.apiContent=prefixedText;
         oldMsg.hasPrefix=true;
@@ -1846,7 +1836,6 @@ function renderChat(){
             const note=transMatch[2].trim()||"转账给你";
             contentHtml=`<div class="transfer-card"><div class="transfer-icon">⇄</div><div class="transfer-info"><div class="transfer-amount">¥${amount}</div><div class="transfer-note">${escapeHtml(note)}</div><div class="transfer-label">转账</div></div></div>`;
         }else if(msg.type==='image'){
-            // 为图片元素增加 oncontextmenu 和 draggable 属性阻止系统菜单
             contentHtml=`<div class="image-message"><img src="${escapeHtml(msg.imageUrl)}" class="image-thumb" onclick="showImagePreview('${escapeHtml(msg.imageUrl)}')" oncontextmenu="return false;" draggable="false" data-msg-id="${msg.id}"><div class="image-description">${escapeHtml(msg.content)}</div></div>`;
         }else{
             contentHtml=`<div>${escapeHtml(msg.content)}</div>`;
@@ -1874,15 +1863,12 @@ function renderChat(){
         }
     }
     container.innerHTML=html;
-    // 绑定重新生成和版本切换事件
     document.querySelectorAll('.regenerate-icon').forEach(icon=>icon.onclick=e=>{ e.stopPropagation(); regenerateAiMessage(icon.dataset.id); });
     document.querySelectorAll('.version-arrow').forEach(arrow=>arrow.onclick=e=>{ e.stopPropagation(); switchVersion(arrow.dataset.id,parseInt(arrow.dataset.delta)); });
     
-    // 阻止系统上下文菜单（右键/长按菜单）对 .message 和 .image-thumb 的干扰
     document.querySelectorAll('.message, .image-thumb').forEach(el => {
         el.addEventListener('contextmenu', (e) => e.preventDefault());
     });
-    // 阻止 .message-row 上的系统菜单（已有，但再次确保）
     document.querySelectorAll('.message-row').forEach(row => {
         row.addEventListener('contextmenu', (e) => e.preventDefault());
     });
@@ -1890,7 +1876,6 @@ function renderChat(){
     if(multiSelectMode){
         document.querySelectorAll('.message-checkbox').forEach(chk=>chk.onclick=e=>{ e.stopPropagation(); toggleSelectMessage(chk.dataset.id); });
     }else{
-        // 长按菜单逻辑
         let longPressTimer = null;
         let startX, startY;
         const resetLongPress = () => {
@@ -1912,7 +1897,7 @@ function renderChat(){
                 startY = e.touches[0].clientY;
                 resetLongPress();
                 longPressTimer = setTimeout(() => {
-                    e.preventDefault();  // 阻止系统菜单
+                    e.preventDefault();
                     showContextMenu(e, msgId, role, content, type, imageUrl);
                     resetLongPress();
                 }, 500);
@@ -1985,7 +1970,7 @@ async function buildActiveMessagePrompt(){
     let randomHot=hotItems.length?hotItems[Math.floor(Math.random()*hotItems.length)]:"";
     let tomorrowPlan=data.schedule.tomorrow.map(s=>`${s.time} ${s.act}`).join("；");
     let randomEvent=randomHot||(tomorrowPlan?`明天计划：${tomorrowPlan}`:"");
-    let prompt=`你正在扮演角色“${currentRole}”，你需要给你的朋友发一条主动消息。\n要求：\n1. 绝对不要提及具体的时间、地点、天气、热点标题。\n2. 先描述你自己当下的状态或情绪（例如：“刚吃完外卖，有点撑。”），然后再自然地问对方一句（可选）。\n3. 消息长度1-3句，口语化，像真实朋友聊天。\n4. 不要使用“在吗”“早安”“你好”等机械问候。\n5. 你可以参考下面的长期记忆，但不要直接复述。\n\n最近对话：\n${recentContext || "无最近对话"}\n\n当前你的状态参考：${statusInfo}\n${memoryBlock}\n请直接输出主动消息内容（不要加任何标记）：`;
+    let prompt=`你正在扮演角色“${data.aiName}”，你需要给你的朋友发一条主动消息。\n要求：\n1. 绝对不要提及具体的时间、地点、天气、热点标题。\n2. 先描述你自己当下的状态或情绪（例如：“刚吃完外卖，有点撑。”），然后再自然地问对方一句（可选）。\n3. 消息长度1-3句，口语化，像真实朋友聊天。\n4. 不要使用“在吗”“早安”“你好”等机械问候。\n5. 你可以参考下面的长期记忆，但不要直接复述。\n\n最近对话：\n${recentContext || "无最近对话"}\n\n当前你的状态参考：${statusInfo}\n${memoryBlock}\n请直接输出主动消息内容（不要加任何标记）：`;
     return prompt;
 }
 async function sendActiveMessage(){
@@ -2184,8 +2169,9 @@ function renderRolesList(){
 function openRoleDetail(roleName){
     currentEditRole=roleName;
     document.getElementById("roleDetailTitle").innerText=`编辑 ${roleName}`;
-    let data=roleData[roleName]||{ avatar:"", userAvatar:"", chatBackground:"", persona:"", longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, userPersona:"" };
+    let data=roleData[roleName]||{ avatar:"", userAvatar:"", chatBackground:"", persona:"", aiName: roleName, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, userPersona:"" };
     document.getElementById("editRoleName").value=roleName;
+    document.getElementById("editAiName").value=data.aiName||roleName;
     document.getElementById("editPersonaPrompt").value=data.persona||"";
     document.getElementById("editUserPersona").value=data.userPersona||"";
     const roleAvatarPreview=document.getElementById("roleAvatarPreview");
@@ -2242,6 +2228,7 @@ function addMemoryFact(){
 }
 function saveCurrentRoleDetail(){
     let newName=document.getElementById("editRoleName").value.trim();
+    let newAiName=document.getElementById("editAiName").value.trim();
     let persona=document.getElementById("editPersonaPrompt").value;
     let userPersona=document.getElementById("editUserPersona").value;
     if(!roleData[currentEditRole]) roleData[currentEditRole]={};
@@ -2255,6 +2242,7 @@ function saveCurrentRoleDetail(){
     }
     roleData[currentEditRole].persona=persona;
     roleData[currentEditRole].userPersona=userPersona;
+    if(newAiName) roleData[currentEditRole].aiName=newAiName;
     saveAll();
     showToast("已保存");
     updateRoleDropdownMenu();
@@ -2278,10 +2266,10 @@ function deleteCurrentRole(){
     }
 }
 function addNewRoleFromList(){
-    let newName=prompt("新角色名");
+    let newName=prompt("新角色名（显示名）");
     if(newName && !roles.includes(newName)){
         roles.push(newName);
-        roleData[newName]={ messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:`你叫${newName}，自然聊天，短句回复。`, avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), userPersona:"", params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
+        roleData[newName]={ messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:`你叫${newName}，自然聊天，短句回复。`, aiName:newName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
         saveAll();
         updateRoleDropdownMenu();
         renderRolesList();
@@ -2381,7 +2369,7 @@ async function importChatBoxData(file){
                     let newRoleName=prompt("请输入新角色名称:","导入的角色");
                     if(newRoleName && !roles.includes(newRoleName)){
                         roles.push(newRoleName);
-                        roleData[newRoleName]={ messages:newMessages, location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:personaContent||`你叫${newRoleName}，自然聊天，短句回复。`, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
+                        roleData[newRoleName]={ messages:newMessages, location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:personaContent||`你叫${newRoleName}，自然聊天，短句回复。`, aiName:newRoleName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
                         saveAll();
                         refreshRoleSelects();
                         renderRolesList();
