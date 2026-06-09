@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.3 - 分页加载 | 图片包装 | 多行输入 | 多选滚动修复</title>
+    <title>DobbyChat · 智能角色陪伴 v2.5 - 独立聊天背景 | UI 全面优化 | 消息即时显示</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="manifest" href="/site.webmanifest">
     <style>
         /* ========== 基础变量（深色模式默认） ========== */
         :root {
@@ -45,7 +43,7 @@
             --context-menu-text: white;
             --multi-select-bar-bg: rgba(28,28,30,0.95);
         }
-        /* 浅色模式 - 移除对 --send-btn-bg 的覆盖，使其跟随用户气泡色 */
+        /* 浅色模式 - 发送按钮跟随用户气泡色 */
         .theme-light {
             --page-bg: #f8f6f2;
             --card-bg: #ffffff;
@@ -104,12 +102,26 @@
             display: flex;
             flex-direction: column;
         }
+        /* 全局背景（主页用） */
         .wallpaper-bg {
             position: absolute;
             top:0; left:0; width:100%; height:100%;
             background-size: cover;
             background-position: center;
             z-index:0;
+        }
+        /* 聊天页独立背景层 */
+        .chat-wallpaper-bg {
+            position: absolute;
+            top:0; left:0; width:100%; height:100%;
+            background-size: cover;
+            background-position: center;
+            z-index:0;
+            display: none;
+        }
+        .chat-page.active ~ .chat-wallpaper-bg,
+        .chat-page.active + .chat-wallpaper-bg {
+            display: block;
         }
         .page {
             position: absolute;
@@ -387,6 +399,9 @@
             overflow-y: auto;
             line-height: 1.4;
             font-family: inherit;
+            height: 44px;
+            max-height: 120px;
+            transition: height 0.1s ease;
         }
         .chat-input::placeholder {
             color: var(--input-placeholder);
@@ -395,26 +410,44 @@
             background: var(--send-btn-bg);
             border: none;
             color: var(--send-btn-color);
-            padding: 0 16px;
+            width: 44px;
+            height: 44px;
+            padding: 0;
             border-radius: 30px;
             font-weight: 600;
             cursor: pointer;
             font-size: 20px;
-            line-height: 36px;
+            line-height: 1;
             text-align: center;
-            transition: background 0.2s, opacity 0.2s;
+            transition: all 0.1s ease;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
+        }
+        .send-btn:active {
+            transform: scale(0.96);
+            background-color: rgba(0,0,0,0.1);
         }
         .send-btn:disabled {
             background: var(--send-btn-disabled);
             cursor: not-allowed;
             opacity: 0.7;
+            transform: none;
         }
         .send-btn.loading {
-            opacity: 0.6;
             pointer-events: none;
+        }
+        .send-btn .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--send-btn-color);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         .image-upload-btn {
             background: transparent;
@@ -423,9 +456,12 @@
             font-size: 24px;
             cursor: pointer;
             padding: 0 8px;
-            line-height: 36px;
+            line-height: 44px;
             margin-left: auto;
             margin-right: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .transfer-card {
             background: #F2A24D;
@@ -847,6 +883,7 @@
 <body>
 <div class="phone">
     <div class="wallpaper-bg" id="wallpaperBg" style="background-image: url('https://picsum.photos/id/104/800/1200');"></div>
+    <div id="chatWallpaperBg" class="chat-wallpaper-bg"></div>
     <div id="homePage" class="page home-page active">
         <div class="bubble large" data-page="chat">💬 聊天</div>
         <div class="bubble small" data-page="location">📍 地点</div>
@@ -855,7 +892,7 @@
         <div class="bubble small" data-page="settings">⚙️ 设置</div>
         <div class="bubble small" data-page="debugLog">❓ 日志</div>
     </div>
-    <div id="chatPage" class="page">
+    <div id="chatPage" class="page chat-page">
         <div class="header">
             <button class="back-home" data-home>←</button>
             <div class="role-display" id="roleDisplay"></div>
@@ -892,7 +929,7 @@
         <div class="card-list"><div class="flex-between"><label>联系人备注</label><input id="editRoleName" placeholder="例如：小文盲 😂"></div></div>
         <div class="tab-bar">
             <button class="tab-btn active" data-role-tab="persona">人设</button>
-            <button class="tab-btn" data-role-tab="memory">长期事实记忆</button>
+            <button class="tab-btn" data-role-tab="memory">长期记忆</button>
             <button class="tab-btn" data-role-tab="world">世界书</button>
             <button class="tab-btn" data-role-tab="user">我的设定</button>
         </div>
@@ -905,8 +942,11 @@
             </div>
         </div>
         <div id="roleMemoryArea" style="display:none;">
+            <div class="flex-between" style="margin-bottom: 12px;">
+                <button id="addMemoryFactBtn" class="small-btn">+ 添加事实</button>
+                <button id="manualSummarizeBtn" class="small-btn">🧠 从对话总结记忆</button>
+            </div>
             <div class="card-list" id="editMemoryFactsList"></div>
-            <div class="flex-between"><button id="addMemoryFactBtn" class="small-btn">+ 添加事实</button><button id="manualSummarizeBtn" class="small-btn">🧠 从对话总结记忆</button></div>
         </div>
         <div id="roleWorldArea" style="display:none;">
             <div class="tab-bar"><button class="small-btn world-cat-btn" data-wbcat="人物">人物</button><button data-wbcat="地点">地点</button><button data-wbcat="世界观">世界观</button><button data-wbcat="自定义">自定义</button></div>
@@ -1120,7 +1160,7 @@ function saveAll(){
 }
 function loadAll(){
     let raw=localStorage.getItem("sullyos_data");
-    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; if(msg.apiContent===undefined && msg.role==="user" && msg.content) msg.apiContent=msg.content; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; } }
+    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; } }
     let today=new Date().toDateString();
     if(today!==lastActiveDate){ activeMsgCountToday=0; lastActiveDate=today; saveAll(); }
     let sec=localStorage.getItem(SECONDARY_SETTINGS_KEY); if(sec){ try{ let s=JSON.parse(sec); secondarySettings={...secondarySettings,...s}; }catch(e){} }
@@ -1297,7 +1337,7 @@ function buildBaseSystemPrompt(){
     return `${livingRules}\n\n${data.persona}${transferRule}`;
 }
 
-// ======================= 系统信息标记块（动态，附加在用户消息前） =======================
+// ======================= 系统信息标记块（动态，仅用于当前请求，不存储） =======================
 function buildSystemInfoBlock(){
     let data = getCurrentData();
     let now = new Date();
@@ -1329,7 +1369,7 @@ function buildSystemInfoBlock(){
     return lines;
 }
 
-function buildUserMessagePrefix(currentUserMessage, lastMsgTimestamp, scheduleContext="", hotContext=""){
+function buildCurrentUserMessageWithPrefix(currentUserMessage, scheduleContext="", hotContext=""){
     let lines = buildSystemInfoBlock();
     if(scheduleContext) lines.push(scheduleContext);
     if(hotContext) lines.push(hotContext);
@@ -1356,7 +1396,8 @@ function getContextMessages(){
     let range=data.params.contextRange;
     let limit=range==="all"?data.messages.length:(parseInt(range)||20);
     let msgs=data.messages.slice(-limit);
-    return msgs.map(msg=>{ if(msg.role==="user") return {role:"user",content:msg.apiContent||msg.content,timestamp:msg.timestamp}; else return {role:"assistant",content:msg.content,timestamp:msg.timestamp}; });
+    // 返回原始内容（不带前缀）
+    return msgs.map(msg=>{ if(msg.role==="user") return {role:"user",content:msg.content,timestamp:msg.timestamp}; else return {role:"assistant",content:msg.content,timestamp:msg.timestamp}; });
 }
 
 // ======================= 智能拆分函数 =======================
@@ -1395,7 +1436,7 @@ function splitNaturalResponse(text) {
     return result;
 }
 
-async function callDeepSeekBubbles(userPrefixedMessage, historyOverride=null, extraSystem=""){
+async function callDeepSeekBubbles(currentUserPrefixedMessage, historyOverride=null, extraSystem=""){
     let settings = getApiSettings();
     if(!settings.apiKey) throw new Error("请先设置 API Key");
     let data = getCurrentData();
@@ -1406,7 +1447,7 @@ async function callDeepSeekBubbles(userPrefixedMessage, historyOverride=null, ex
         if(m.role === "user") messages.push({role:"user", content: m.content});
         else if(m.role === "assistant") messages.push({role:"assistant", content: m.content});
     }
-    if(userPrefixedMessage) messages.push({role:"user", content: userPrefixedMessage});
+    if(currentUserPrefixedMessage) messages.push({role:"user", content: currentUserPrefixedMessage});
     let body = {
         model: settings.modelName,
         messages,
@@ -1451,41 +1492,51 @@ async function addAiBubblesSequentially(bubbles){
     await checkAutoSummary();
 }
 
-// ======================= 发送消息（修复重复问题 + 系统信息标记块） =======================
+// ======================= 发送消息（先显示用户消息，再调 API） =======================
 async function sendMessage(text, skipActiveReset=false){
     if(!text.trim() || isWaitingForAI) return;
     updateLocationAuto();
     let data=getCurrentData();
     if(!skipActiveReset && data.activeMsg){ data.activeMsg.consecutiveNoReply=0; data.activeMsg.lastUserMsgTime=Date.now(); lastUserMessageTime=data.activeMsg.lastUserMsgTime; saveAll(); }
-    let lastMsgTimestamp=data.messages.length>0?data.messages[data.messages.length-1].timestamp:null;
+    
+    // 构造带前缀的当前消息（仅用于 API 请求）
     let scheduleCtx = shouldInjectSchedule(text) ? getScheduleContext() : "";
     let hotCtx = shouldInjectHot(text) ? getHotContext() : "";
-    let prefixedText = buildUserMessagePrefix(text, lastMsgTimestamp, scheduleCtx, hotCtx);
-    let userMsg={ id:generateMsgId(), role:"user", content:text, apiContent:prefixedText, hasPrefix:true, timestamp:Date.now() };
+    let prefixedCurrentMsg = buildCurrentUserMessageWithPrefix(text, scheduleCtx, hotCtx);
     
-    isWaitingForAI=true;
-    let btn=document.getElementById("sendMessageBtn");
-    btn.disabled=true;
+    // 存储原始用户消息（不含前缀）
+    let userMsg = { id: generateMsgId(), role: "user", content: text, timestamp: Date.now() };
+    
+    // 立即显示用户消息
+    data.messages.push(userMsg);
+    saveAll();
+    renderChat();
+    document.getElementById("messageInput").value = "";
+    let txt = document.getElementById("messageInput");
+    txt.style.height = "44px"; // 重置高度
+    scrollChatBottom();
+    
+    // 开始 API 调用
+    isWaitingForAI = true;
+    let btn = document.getElementById("sendMessageBtn");
+    btn.disabled = true;
     btn.classList.add("loading");
-    btn.textContent = "💌";
+    btn.innerHTML = '<div class="spinner"></div>'; // 显示加载圆圈
+    
     try{
-        let bubbles=await callDeepSeekBubbles(prefixedText,null,"");
-        data.messages.push(userMsg);
-        saveAll();
-        renderChat();
-        document.getElementById("messageInput").value="";
-        // 重置textarea高度
-        let txt = document.getElementById("messageInput");
-        txt.style.height = "auto";
-        txt.style.height = (txt.scrollHeight) + "px";
+        let bubbles = await callDeepSeekBubbles(prefixedCurrentMsg, null, "");
         await addAiBubblesSequentially(bubbles);
     }catch(e){
         showToast("回复失败: "+e.message);
+        // 删除刚添加的用户消息
+        data.messages = data.messages.filter(m => m.id !== userMsg.id);
+        saveAll();
+        renderChat();
     }finally{
-        isWaitingForAI=false;
-        btn.disabled=false;
+        isWaitingForAI = false;
+        btn.disabled = false;
         btn.classList.remove("loading");
-        btn.textContent = "💌";
+        btn.innerHTML = "💌";
     }
 }
 
@@ -1493,20 +1544,19 @@ async function sendMessage(text, skipActiveReset=false){
 async function autoGenerateReplyForImage(wrappedDescription, userMsg){
     let data=getCurrentData();
     if(isWaitingForAI) return;
-    let lastMsgTimestamp=data.messages.length>0?data.messages[data.messages.length-1].timestamp:null;
     let scheduleCtx = shouldInjectSchedule(wrappedDescription) ? getScheduleContext() : "";
     let hotCtx = shouldInjectHot(wrappedDescription) ? getHotContext() : "";
-    let prefixedDesc = buildUserMessagePrefix(wrappedDescription, lastMsgTimestamp, scheduleCtx, hotCtx);
+    let prefixedDesc = buildCurrentUserMessageWithPrefix(wrappedDescription, scheduleCtx, hotCtx);
     isWaitingForAI=true;
     let btn=document.getElementById("sendMessageBtn");
     btn.disabled=true;
     btn.classList.add("loading");
-    btn.textContent = "💌";
+    btn.innerHTML = '<div class="spinner"></div>';
     try{
         let bubbles=await callDeepSeekBubbles(prefixedDesc,null,"");
         await addAiBubblesSequentially(bubbles);
     }catch(e){ showToast("自动回复失败: "+e.message); }
-    finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.textContent="💌"; }
+    finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.innerHTML="💌"; }
 }
 
 async function compressImage(file,maxSizeMB=0.8,maxWidthOrHeight=1024){
@@ -1558,7 +1608,6 @@ async function describeImageWithGLM(imageUrl){
     throw new Error('未获取到描述');
 }
 
-// 发送图片消息（包装后发给AI）
 async function sendImageMessage(file){
     if(!visionSettings.enabled || !visionSettings.apiKey){ showToast("未启用识图功能或缺少API Key"); return; }
     showToast("处理图片中...");
@@ -1567,9 +1616,8 @@ async function sendImageMessage(file){
         const imageUrl=await uploadToCloudinary(compressedBlob);
         const description=await describeImageWithGLM(imageUrl);
         if(!description) throw new Error("识别结果为空");
-        // 构造包装后的消息（AI看到）
         let wrappedDescription = `[用户发来一张图片，内容大概是：${description}]`;
-        let imageMsg={ id:generateMsgId(), role:"user", type:"image", content:description, imageUrl:imageUrl, timestamp:Date.now(), hasPrefix:true, apiContent:wrappedDescription };
+        let imageMsg={ id:generateMsgId(), role:"user", type:"image", content:description, imageUrl:imageUrl, timestamp:Date.now() };
         let data=getCurrentData();
         data.messages.push(imageMsg);
         saveAll();
@@ -1615,7 +1663,7 @@ async function regenerateAiMessage(msgId){
     if(idx===-1) return;
     let msg=data.messages[idx];
     let history=data.messages.slice(0,idx);
-    let apiHistory=history.map(m=>{ if(m.role==="user") return {role:"user",content:m.apiContent||m.content}; else return {role:"assistant",content:m.content}; });
+    let apiHistory=history.map(m=>{ if(m.role==="user") return {role:"user",content:m.content}; else return {role:"assistant",content:m.content}; });
     if(isWaitingForAI) return showToast("请稍后");
     isWaitingForAI=true;
     showToast("重新生成中...");
@@ -1659,17 +1707,16 @@ async function modifyUserMessageAndRegenerate(msgId,newText){
     let idx=data.messages.findIndex(m=>m.id===msgId);
     if(idx===-1) return;
     let oldMsg=data.messages[idx];
-    let lastMsgTimestamp=idx>0?data.messages[idx-1].timestamp:null;
     let scheduleCtx = shouldInjectSchedule(newText) ? getScheduleContext() : "";
     let hotCtx = shouldInjectHot(newText) ? getHotContext() : "";
-    let prefixedText = buildUserMessagePrefix(newText, lastMsgTimestamp, scheduleCtx, hotCtx);
+    let prefixedCurrentMsg = buildCurrentUserMessageWithPrefix(newText, scheduleCtx, hotCtx);
     if(isWaitingForAI) return;
     isWaitingForAI=true;
     try{
-        let bubbles=await callDeepSeekBubbles(prefixedText,data.messages.slice(0,idx),"");
+        let history = data.messages.slice(0,idx);
+        let apiHistory = history.map(m=>{ if(m.role==="user") return {role:"user",content:m.content}; else return {role:"assistant",content:m.content}; });
+        let bubbles=await callDeepSeekBubbles(prefixedCurrentMsg, apiHistory, "");
         oldMsg.content=newText;
-        oldMsg.apiContent=prefixedText;
-        oldMsg.hasPrefix=true;
         data.messages=data.messages.slice(0,idx+1);
         saveAll();
         renderChat();
@@ -1692,10 +1739,8 @@ function enterMultiSelectMode(defaultId=null){
     if(defaultId) selectedMsgIds.add(defaultId);
     const container=document.getElementById("chatMessagesContainer");
     container.classList.add("multi-select-active");
-    // 保存滚动位置
     let oldScrollTop = container.scrollTop;
     renderChat();
-    // 恢复滚动位置
     container.scrollTop = oldScrollTop;
     let bar=document.getElementById("multiSelectBar");
     if(!bar){
@@ -1738,7 +1783,7 @@ function toggleSelectMessage(id){
     if(selectedMsgIds.has(id)) selectedMsgIds.delete(id);
     else selectedMsgIds.add(id);
     updateSelectedCount();
-    renderChat(); // 重新渲染以更新复选框状态，但会丢失滚动位置，需在外部处理
+    renderChat(); 
 }
 async function confirmDeleteSelected(){
     if(selectedMsgIds.size===0){ exitMultiSelectMode(); return; }
@@ -1768,17 +1813,21 @@ async function autoGenerateReplyAfterDelete(){
     if(lastMsg.role==="user"){
         let text=lastMsg.content;
         if(isWaitingForAI) return;
-        let prefixed=lastMsg.apiContent||text;
+        let scheduleCtx = shouldInjectSchedule(text) ? getScheduleContext() : "";
+        let hotCtx = shouldInjectHot(text) ? getHotContext() : "";
+        let prefixedCurrentMsg = buildCurrentUserMessageWithPrefix(text, scheduleCtx, hotCtx);
         isWaitingForAI=true;
         let btn=document.getElementById("sendMessageBtn");
         btn.disabled=true;
         btn.classList.add("loading");
-        btn.textContent="💌";
+        btn.innerHTML = '<div class="spinner"></div>';
         try{
-            let bubbles=await callDeepSeekBubbles(prefixed,data.messages.slice(0,-1),"");
+            let history = data.messages.slice(0,-1);
+            let apiHistory = history.map(m=>{ if(m.role==="user") return {role:"user",content:m.content}; else return {role:"assistant",content:m.content}; });
+            let bubbles=await callDeepSeekBubbles(prefixedCurrentMsg, apiHistory, "");
             await addAiBubblesSequentially(bubbles);
         }catch(e){ showToast("自动回复失败: "+e.message); }
-        finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.textContent="💌"; }
+        finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.innerHTML="💌"; }
     }
 }
 
@@ -1801,9 +1850,9 @@ function formatTimestamp(ts){
 }
 
 // 分页加载变量
-let currentDisplayCount = 50;      // 当前显示的消息数量（从最新开始往前数）
-const PAGE_STEP = 30;              // 每次加载更多时增加的数量
-let isLoadingMore = false;          // 防止重复加载
+let currentDisplayCount = 50;      
+const PAGE_STEP = 30;              
+let isLoadingMore = false;          
 
 function renderChat(){
     let container=document.getElementById("chatMessagesContainer");
@@ -1811,9 +1860,7 @@ function renderChat(){
     let data=getCurrentData();
     let allMessages=data.messages||[];
     let totalMessages = allMessages.length;
-    // 确保 currentDisplayCount 不超过总消息数
     if(currentDisplayCount > totalMessages) currentDisplayCount = totalMessages;
-    // 从末尾截取 currentDisplayCount 条
     let messages = allMessages.slice(-currentDisplayCount);
     let roleAvatarUrl=data.avatar||"";
     let userAvatarUrl=data.userAvatar||"";
@@ -1874,23 +1921,19 @@ function renderChat(){
             html+=`<div class="message-row ai" data-msg-id="${msg.id}" data-role="ai" data-content="${escapeHtml(msg.content)}" data-type="${msg.type||'text'}" data-image-url="${msg.imageUrl||''}" style="position:relative;">${checkboxHtml}${avatarHtml}<div class="${messageClass}">${contentHtml}</div>${aiButtons}</div>`;
         }
     }
-    // 如果需要显示“加载更多”提示（当前显示数量少于总消息数）
     if(currentDisplayCount < totalMessages){
         html = `<div class="loading-indicator" id="loadMoreTrigger">⬆️ 上拉加载更早消息</div>` + html;
     }
     container.innerHTML=html;
     
-    // 绑定重新生成和版本切换事件
     document.querySelectorAll('.regenerate-icon').forEach(icon=>icon.onclick=e=>{ e.stopPropagation(); regenerateAiMessage(icon.dataset.id); });
     document.querySelectorAll('.version-arrow').forEach(arrow=>arrow.onclick=e=>{ e.stopPropagation(); switchVersion(arrow.dataset.id,parseInt(arrow.dataset.delta)); });
     
-    // 阻止所有可能的系统右键/长按菜单
     document.querySelectorAll('.message, .image-thumb, .message-row').forEach(el => {
         el.addEventListener('contextmenu', (e) => e.preventDefault());
         el.addEventListener('selectstart', (e) => e.preventDefault());
     });
     
-    // 添加双击弹出菜单
     const addDoubleClickToRow = (row) => {
         const msgId = row.dataset.msgId;
         const role = row.dataset.role;
@@ -1914,7 +1957,6 @@ function renderChat(){
         addDoubleClickToRow(row);
     });
     
-    // 图片单击预览
     document.querySelectorAll('.image-thumb').forEach(img => {
         img.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1927,19 +1969,16 @@ function renderChat(){
         document.querySelectorAll('.message-checkbox').forEach(chk=>chk.onclick=e=>{ e.stopPropagation(); toggleSelectMessage(chk.dataset.id); });
     }
     
-    // 滚动监听：当滚动到顶部附近时加载更多
     const loadMoreTrigger = document.getElementById("loadMoreTrigger");
     if(loadMoreTrigger && !isLoadingMore){
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if(entry.isIntersecting && !isLoadingMore && currentDisplayCount < totalMessages){
                     isLoadingMore = true;
-                    // 保存当前滚动位置（相对于顶部）
                     let oldScrollHeight = container.scrollHeight;
                     let oldScrollTop = container.scrollTop;
                     currentDisplayCount = Math.min(totalMessages, currentDisplayCount + PAGE_STEP);
                     renderChat();
-                    // 恢复滚动位置（由于新增了消息在上面，需要调整）
                     let newScrollHeight = container.scrollHeight;
                     container.scrollTop = oldScrollTop + (newScrollHeight - oldScrollHeight);
                     isLoadingMore = false;
@@ -1948,17 +1987,11 @@ function renderChat(){
             });
         }, { threshold: 0.1 });
         observer.observe(loadMoreTrigger);
-        // 存储以便后续清理（可选）
         container._loadMoreObserver = observer;
     } else if(loadMoreTrigger && container._loadMoreObserver){
         container._loadMoreObserver.disconnect();
         container._loadMoreObserver = null;
     }
-    
-    // 如果不是多选模式，自动滚动到底部（仅在发送新消息时希望滚动，但为了避免干扰，仅在非多选且消息是新增时滚动？简单处理：不自动滚动）
-    // 为了保持用户阅读体验，在非多选模式下不要强制滚动，而是让用户控制。但以前有 scrollChatBottom 调用，我们改为只在发送新消息后由外部调用 scrollChatBottom
-    // 这里不再自动滚动到底部。
-    // 但仍需在必要时滚动到底部（例如首次加载或发送消息后）。外部调用 scrollChatBottom 即可。
 }
 
 function scrollChatBottom(){
@@ -2174,7 +2207,6 @@ function updateRoleDropdownMenu(){
                 else lastUserMessageTime=Date.now();
                 restartActiveMsgTimer();
                 updateChatBackground();
-                // 重置分页显示数量，重新渲染
                 currentDisplayCount = Math.min(50, getCurrentData().messages.length);
                 renderChat();
                 updateLocationAuto();
@@ -2196,10 +2228,18 @@ function toggleRoleDropdown(){
     }else menu.style.display="none";
 }
 function updateChatBackground(){
-    const data=getCurrentData();
-    const bg=data.chatBackground||globalWallpaper;
-    if(bg) document.getElementById("wallpaperBg").style.backgroundImage=`url(${bg})`;
-    else document.getElementById("wallpaperBg").style.backgroundImage="url('https://picsum.photos/id/104/800/1200')";
+    const data = getCurrentData();
+    const bg = data.chatBackground || "";
+    const chatWallpaper = document.getElementById("chatWallpaperBg");
+    if (chatWallpaper) {
+        if (bg) {
+            chatWallpaper.style.backgroundImage = `url(${bg})`;
+            chatWallpaper.style.display = "block";
+        } else {
+            chatWallpaper.style.backgroundImage = "";
+            chatWallpaper.style.display = "none";
+        }
+    }
 }
 
 function renderRolesList(){
@@ -2396,7 +2436,6 @@ async function importChatBoxData(file){
                 if(msg.contentParts && msg.contentParts[0]) content=msg.contentParts[0].text;
                 content=chatBoxTransferToInternal(content);
                 let newMsg={ id:generateMsgId(), role:msg.role, content:content, timestamp:msg.timestamp||Date.now(), versions:[content], currentVersionIndex:0 };
-                if(msg.role==="user"){ newMsg.apiContent=content; newMsg.hasPrefix=false; }
                 newMessages.push(newMsg);
             }
             newMessages.sort((a,b)=>a.timestamp-b.timestamp);
@@ -2471,11 +2510,18 @@ function showPage(pageId){
     document.getElementById(pageId).style.display='flex';
     if(pageId==='chatPage'){ 
         updateChatBackground(); 
-        // 重置分页显示数量为最近50条
         currentDisplayCount = Math.min(50, getCurrentData().messages.length);
         renderChat(); 
         updateLocationAuto(); 
         updateRoleDisplay(); 
+    }
+    if(pageId==='homePage'){
+        // 恢复主页全局背景
+        const bg = globalWallpaper || "url('https://picsum.photos/id/104/800/1200')";
+        document.getElementById("wallpaperBg").style.backgroundImage = `url(${bg})`;
+        // 确保聊天背景层隐藏
+        const chatWallpaper = document.getElementById("chatWallpaperBg");
+        if(chatWallpaper) chatWallpaper.style.display = "none";
     }
     if(pageId==='locationPage'){ updateLocationAuto(); renderLocationPage(); }
     if(pageId==='rolesPage') renderRolesList();
@@ -2503,13 +2549,20 @@ document.getElementById("sendMessageBtn").onclick=()=>{
     let text = txt.value;
     if(text.trim() && !isWaitingForAI) sendMessage(text);
 };
-// 自动调整textarea高度
 const textarea = document.getElementById("messageInput");
 if(textarea){
-    textarea.addEventListener("input", function() {
-        this.style.height = "auto";
-        this.style.height = (this.scrollHeight) + "px";
-    });
+    // 动态调整高度
+    const adjustHeight = () => {
+        textarea.style.height = "44px";
+        const scrollH = textarea.scrollHeight;
+        if(scrollH > 44) {
+            let newH = Math.min(scrollH, 120);
+            textarea.style.height = newH + "px";
+        }
+    };
+    textarea.addEventListener("input", adjustHeight);
+    // 初始调整一次
+    adjustHeight();
 }
 document.getElementById("openRoleParamsBtn").onclick=openRoleParams;
 document.getElementById("closeParamsModal").onclick=()=>document.getElementById("roleParamsModal").style.display="none";
@@ -2550,14 +2603,33 @@ document.getElementById("searchModal").addEventListener("click",e=>{ if(e.target
 document.getElementById("roleDropdownBtn").onclick=toggleRoleDropdown;
 document.getElementById("darkModeToggle").addEventListener("change", toggleDarkMode);
 
-document.getElementById("uploadGlobalWallpaperBtn").onclick=()=>{ handleImageUpload(dataUrl=>{ globalWallpaper=dataUrl; document.getElementById("wallpaperBg").style.backgroundImage=`url(${globalWallpaper})`; saveAll(); showToast("全局背景已更新"); }); };
-document.getElementById("resetGlobalWallpaperBtn").onclick=()=>{ globalWallpaper=""; document.getElementById("wallpaperBg").style.backgroundImage="url('https://picsum.photos/id/104/800/1200')"; saveAll(); showToast("已重置默认背景"); };
+document.getElementById("uploadGlobalWallpaperBtn").onclick=()=>{ handleImageUpload(dataUrl=>{ globalWallpaper=dataUrl; document.getElementById("wallpaperBg").style.backgroundImage=`url(${globalWallpaper})`; saveAll(); showToast("主页背景已更新"); }); };
+document.getElementById("resetGlobalWallpaperBtn").onclick=()=>{ globalWallpaper=""; document.getElementById("wallpaperBg").style.backgroundImage="url('https://picsum.photos/id/104/800/1200')"; saveAll(); showToast("已重置默认主页背景"); };
 document.getElementById("uploadRoleAvatarBtn").onclick=()=>{ if(!currentEditRole) return; handleImageUpload(dataUrl=>{ roleData[currentEditRole].avatar=dataUrl; saveAll(); const preview=document.getElementById("roleAvatarPreview"); if(preview){ preview.style.backgroundImage=`url(${dataUrl})`; preview.style.backgroundSize="cover"; preview.innerText=""; } showToast("角色头像已更新"); }); };
 document.getElementById("resetRoleAvatarBtn").onclick=()=>{ if(!currentEditRole) return; roleData[currentEditRole].avatar=""; saveAll(); const preview=document.getElementById("roleAvatarPreview"); if(preview){ preview.style.backgroundImage=""; preview.innerText="😊"; preview.style.fontSize="40px"; } showToast("已重置为默认头像"); };
 document.getElementById("uploadUserAvatarBtn").onclick=()=>{ if(!currentEditRole) return; handleImageUpload(dataUrl=>{ roleData[currentEditRole].userAvatar=dataUrl; saveAll(); const preview=document.getElementById("userAvatarPreview"); if(preview){ preview.style.backgroundImage=`url(${dataUrl})`; preview.style.backgroundSize="cover"; preview.innerText=""; } showToast("用户头像已更新"); }); };
 document.getElementById("resetUserAvatarBtn").onclick=()=>{ if(!currentEditRole) return; roleData[currentEditRole].userAvatar=""; saveAll(); const preview=document.getElementById("userAvatarPreview"); if(preview){ preview.style.backgroundImage=""; preview.innerText="👤"; preview.style.fontSize="40px"; } showToast("已重置为默认头像"); };
-document.getElementById("uploadRoleBgBtn").onclick=()=>{ if(!currentEditRole) return; handleImageUpload(dataUrl=>{ roleData[currentEditRole].chatBackground=dataUrl; saveAll(); if(currentRole===currentEditRole) updateChatBackground(); showToast("角色聊天背景已更新"); }); };
-document.getElementById("resetRoleBgBtn").onclick=()=>{ if(!currentEditRole) return; roleData[currentEditRole].chatBackground=""; saveAll(); if(currentRole===currentEditRole) updateChatBackground(); showToast("已重置为全局背景"); };
+document.getElementById("uploadRoleBgBtn").onclick=()=>{
+    if(!currentEditRole) return;
+    handleImageUpload(dataUrl => {
+        roleData[currentEditRole].chatBackground = dataUrl;
+        saveAll();
+        // 如果当前聊天角色就是正在编辑的角色，立即更新聊天背景
+        if (currentRole === currentEditRole) {
+            updateChatBackground();
+        }
+        showToast(`角色“${currentEditRole}”聊天背景已更新`);
+    });
+};
+document.getElementById("resetRoleBgBtn").onclick=()=>{
+    if(!currentEditRole) return;
+    roleData[currentEditRole].chatBackground = "";
+    saveAll();
+    if (currentRole === currentEditRole) {
+        updateChatBackground();
+    }
+    showToast("已重置角色聊天背景");
+};
 
 document.querySelectorAll(".theme-btn").forEach(btn=>{ btn.addEventListener("click",()=>{ applyTheme(btn.dataset.theme); }); });
 document.getElementById("fontSizeSlider").addEventListener("input",e=>{ updateFontSize(parseInt(e.target.value)); });
