@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.7 - 长期记忆编辑 | 主页背景独立 | 图标优化</title>
+    <title>DobbyChat · 智能角色陪伴 v2.7 - 聊天背景透明 | 角色列表颜色修复 | 长期记忆编辑</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <style>
@@ -109,7 +109,7 @@
             background-size: cover;
             background-position: center;
             z-index:0;
-            display: none;  /* 默认隐藏，仅在主页显示 */
+            display: none;
         }
         /* 聊天页独立背景层 */
         .chat-wallpaper-bg {
@@ -130,6 +130,11 @@
             display: none;
             flex-direction: column;
             padding: 20px 16px;
+        }
+        /* 聊天页取消半透明遮罩，让背景图完全可见 */
+        .chat-page {
+            background: transparent !important;
+            backdrop-filter: none !important;
         }
         .page.active { display: flex; }
         .home-page {
@@ -573,6 +578,7 @@
             align-items: center;
             gap: 12px;
             border: 1px solid var(--border-light);
+            color: var(--card-text);  /* 修复深色模式下文字颜色 */
         }
         .role-avatar {
             width: 44px;
