@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.9 - 记忆总结兼容优化 | 费用优化</title>
+    <title>DobbyChat · 智能角色陪伴 v2.10.1 - 待确认记忆修复版</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <style>
@@ -18,7 +18,6 @@
             --send-btn-bg: var(--user-bubble-bg);
             --send-btn-color: var(--user-text-color);
         }
-        /* 深色模式（默认） */
         :root,
         .theme-dark {
             --page-bg: rgba(20,20,25,0.8);
@@ -43,7 +42,6 @@
             --context-menu-text: white;
             --multi-select-bar-bg: rgba(28,28,30,0.95);
         }
-        /* 浅色模式 */
         .theme-light {
             --page-bg: rgba(248,246,242,0.85);
             --card-bg: rgba(255,255,255,0.9);
@@ -883,6 +881,43 @@
             font-size: 12px;
             background: transparent;
         }
+        /* 记忆视图切换样式 */
+        .memory-view-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+        .memory-view-tab {
+            background: #3a3a3e;
+            border: none;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .memory-view-tab.active {
+            background: #007aff;
+        }
+        .memory-view-tab .badge {
+            background: #ff3b30;
+            color: white;
+            border-radius: 10px;
+            padding: 1px 6px;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+        .memory-view-tab .badge.empty {
+            background: #666;
+        }
+        .memory-actions-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
     </style>
 </head>
 <body>
@@ -947,11 +982,20 @@
             </div>
         </div>
         <div id="roleMemoryArea" style="display:none;">
-            <div class="flex-between" style="margin-bottom: 12px;">
-                <button id="addMemoryFactBtn" class="small-btn">+ 添加事实</button>
-                <button id="manualSummarizeBtn" class="small-btn">🧠 从对话总结记忆</button>
+            <div class="memory-view-tabs">
+                <button class="memory-view-tab active" id="memoryTabConfirmed">已确认记忆</button>
+                <button class="memory-view-tab" id="memoryTabPending">待确认记忆 <span class="badge empty" id="pendingBadge">0</span></button>
+                <button id="manualSummarizeBtn" class="small-btn" style="background:#ff9f0a; margin-left:auto;">🧠 从对话总结记忆</button>
             </div>
-            <div class="card-list" id="editMemoryFactsList"></div>
+            <div id="memoryConfirmedView">
+                <div class="memory-actions-bar">
+                    <button id="addMemoryFactBtn" class="small-btn">+ 添加事实</button>
+                </div>
+                <div class="card-list" id="editMemoryFactsList"></div>
+            </div>
+            <div id="memoryPendingView" style="display:none;">
+                <div class="card-list" id="editPendingMemoryList"></div>
+            </div>
         </div>
         <div id="roleWorldArea" style="display:none;">
             <div class="tab-bar"><button class="small-btn world-cat-btn" data-wbcat="人物">人物</button><button data-wbcat="地点">地点</button><button data-wbcat="世界观">世界观</button><button data-wbcat="自定义">自定义</button></div>
@@ -993,7 +1037,7 @@
         </div>
         <div class="card-list"><h4>🔑 主模型（聊天）</h4><div><label>API Key</label><input type="password" id="apiKeyInput"></div><div><label>Base URL</label><input id="baseUrlInput" value="https://api.deepseek.com/v1"></div><div><label>模型</label><input id="modelNameInput" value="deepseek-chat"></div><button id="saveApiSettingsBtn">保存 API 设置</button></div>
         <div class="card-list"><h4>🧠 副模型（记忆总结专用）</h4><div><label><input type="checkbox" id="secondaryApiEnabled"> 启用副模型</label></div><div id="secondaryApiSettings" style="display:none;"><div><label>API Key</label><input type="password" id="secondaryApiKey"></div><div><label>Base URL</label><input id="secondaryBaseUrl"></div><div><label>模型名称</label><input id="secondaryModelName"></div><div><label>Temperature</label><input id="secondaryTemperature" type="number" step="0.1" value="0.3"></div><div><label>Max Tokens</label><input id="secondaryMaxTokens" type="number" value="800"></div><button id="saveSecondarySettingsBtn" class="small-btn">保存</button></div></div>
-        <div class="card-list"><h4>📷 识图功能</h4><div><label><input type="checkbox" id="visionApiEnabled"> 启用识图</label></div><div id="visionApiSettings" style="display:none;"><div><label>视觉模型 API Key</label><input type="password" id="visionApiKey"></div><div><label>模型名称</label><input id="visionModel" value="glm-4.6v-flash"></div><div><label>Cloudinary Cloud Name</label><input id="cloudName" value="dyuoqc5pz"></div><div><label>Cloudinary Upload Preset</label><input id="uploadPreset" value="dobby_unsigned_preset"></div><button id="saveVisionSettingsBtn" class="small-btn">保存</button></div></div>
+        <div class="card-list"><h4>📷 识图功能</h4><div><label><input type="checkbox" id="visionApiEnabled"> 启用识图</label></div><div id="visionApiSettings" style="display:none;"><div><label>视觉模型 API Key</label><input type="password" id="visionApiKey"></div><div><label>模型名称</label><input id="visionModel" value="glm-4v-flash"></div><div><label>Cloudinary Cloud Name</label><input id="cloudName" value="dyuoqc5pz"></div><div><label>Cloudinary Upload Preset</label><input id="uploadPreset" value="dobby_unsigned_preset"></div><button id="saveVisionSettingsBtn" class="small-btn">保存</button></div></div>
         <div class="card-list"><h4>🎨 主页背景图</h4><div><button id="uploadGlobalWallpaperBtn">📷 上传背景图</button><button id="resetGlobalWallpaperBtn">重置默认</button></div></div>
         <div class="card-list"><h4>📦 导入/导出</h4><div><button id="exportChatBtn">导出聊天记录</button><button id="exportPersonaBtn">导出人设</button></div><div><button id="importPersonaBtn">导入人设</button><button id="importChatBoxBtn">📥 从 ChatBox 导入</button></div><div><button id="exportChatBoxBtn">📤 导出为 ChatBox 格式</button><button id="backupAllBtn">全量备份</button><button id="restoreAllBtn">恢复备份</button></div><button id="resetDataBtn" class="danger-btn">重置全部数据</button></div>
     </div>
@@ -1034,7 +1078,7 @@ let lastUserMessageTime = Date.now();
 const TIANXING_API_KEY = "3953ec99c4f5083c015cd59cb94d7fb7";
 let latestWeiboHot = [], latestDouyinHot = [];
 let secondarySettings = { enabled: false, apiKey: "", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat", temperature: 0.3, maxTokens: 800 };
-let visionSettings = { enabled: false, apiKey: "", model: "glm-4.6v-flash", cloudName: "dyuoqc5pz", uploadPreset: "dobby_unsigned_preset" };
+let visionSettings = { enabled: false, apiKey: "", model: "glm-4v-flash", cloudName: "dyuoqc5pz", uploadPreset: "dobby_unsigned_preset" };
 let globalWallpaper = "";
 const themes = {
     wechat: { name: "微信经典", userBg: "#95ec69", userText: "#000000", aiBg: "#eeeeee", aiText: "#000000", fontSize: 16, borderRadius: 12 },
@@ -1125,6 +1169,7 @@ function getCurrentData(){
         roleData[currentRole]={
             messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]},
             memoryFacts:[],
+            pendingMemoryFacts:[],
             worldbook:{人物:[],地点:[],世界观:[],自定义:[]},
             persona:`你叫${currentRole}，说话简短自然，像朋友聊天。`,
             aiName: currentRole,
@@ -1146,6 +1191,7 @@ function getCurrentData(){
     if(d.lastLocationUpdate===undefined) d.lastLocationUpdate=Date.now();
     if(!d.messages) d.messages=[];
     if(!d.memoryFacts) d.memoryFacts=[];
+    if(!d.pendingMemoryFacts) d.pendingMemoryFacts=[];
     if(!d.activeMsg) d.activeMsg={ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() };
     if(d.aiName === undefined) d.aiName = currentRole;
     let todayStr=new Date().toDateString();
@@ -1162,7 +1208,7 @@ function saveAll(){
 }
 function loadAll(){
     let raw=localStorage.getItem("sullyos_data");
-    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; if(!roleData[role].memoryFacts) roleData[role].memoryFacts=[]; } }
+    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; if(!roleData[role].memoryFacts) roleData[role].memoryFacts=[]; if(!roleData[role].pendingMemoryFacts) roleData[role].pendingMemoryFacts=[]; } }
     let today=new Date().toDateString();
     if(today!==lastActiveDate){ activeMsgCountToday=0; lastActiveDate=today; saveAll(); }
     let sec=localStorage.getItem(SECONDARY_SETTINGS_KEY); if(sec){ try{ let s=JSON.parse(sec); secondarySettings={...secondarySettings,...s}; }catch(e){} }
@@ -2033,7 +2079,10 @@ function showContextMenu(e,msgId,role,content,type,imageUrl){
             }
             menu.remove();
         } },
-        { icon:"🧠", label:"记忆", action:()=>{ summarizeLongTermMemory(false); menu.remove(); } },
+        { icon:"🧠", label:"记忆", action:()=>{ 
+            menu.remove();
+            summarizeSingleMessage(msgId);
+        } },
         { icon:"🗑️", label:"删除", action:()=>{ enterMultiSelectMode(msgId); menu.remove(); } }
     ];
     if(type==="image" && imageUrl) actions.splice(2,0,{ icon:"🖼️", label:"预览图片", action:()=>{ showImagePreview(imageUrl); menu.remove(); } });
@@ -2041,6 +2090,188 @@ function showContextMenu(e,msgId,role,content,type,imageUrl){
     document.body.appendChild(menu);
     let remove=()=>{ if(menu.parentNode) menu.remove(); document.removeEventListener("click",remove); };
     setTimeout(()=>document.addEventListener("click",remove),10);
+}
+
+async function summarizeSingleMessage(msgId){
+    let data = getCurrentData();
+    let idx = data.messages.findIndex(m => m.id === msgId);
+    if(idx === -1){ showToast("未找到消息"); return; }
+    let targetMsg = data.messages[idx];
+    let start = Math.max(0, idx-1);
+    let end = Math.min(data.messages.length-1, idx+1);
+    let context = data.messages.slice(start, end+1);
+    let contextStr = context.map((m, i) => {
+        let prefix = (i === idx-start) ? "【目标消息】" : "";
+        return `${prefix}${m.role==='user'?'我':currentRole}: ${m.content}`;
+    }).join("\n");
+    let prompt = `根据以下对话上下文，只针对【目标消息】的内容，提炼出一条简短的事实记忆。用一句陈述句输出，不要加任何额外解释。\n上下文：\n${contextStr}`;
+    let config = getMemorySummaryApiConfig();
+    if(!config.apiKey){ showToast("未配置任何 API Key，无法总结"); return; }
+    showToast("正在总结单条消息...");
+    try{
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        let res = await fetch(`${config.baseUrl}/chat/completions`,{
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json",
+                "Authorization":`Bearer ${config.apiKey}`
+            },
+            body:JSON.stringify({
+                model:config.model,
+                messages:[
+                    {role:"system",content:"你是记忆管理助手，提取事实记忆。输出一句简短陈述。"},
+                    {role:"user",content:prompt}
+                ],
+                temperature:0.3,
+                max_tokens:200
+            }),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if(!res.ok){
+            let errorText = await res.text();
+            throw new Error(`API错误 ${res.status}: ${errorText.substring(0,200)}`);
+        }
+        let json = await res.json();
+        let content = json.choices[0].message.content;
+        let memoryText = content.trim();
+        if(memoryText){
+            data.pendingMemoryFacts.push({ id:generateMsgId(), text:memoryText, timestamp:Date.now(), importance:0.7 });
+            saveAll();
+            showToast("已生成待确认记忆，请到角色编辑页确认");
+            updatePendingBadge();
+            if(currentEditRole && document.getElementById("memoryPendingView") && document.getElementById("memoryPendingView").style.display !== "none"){
+                renderPendingMemoryFacts();
+            }
+        } else {
+            throw new Error("生成内容为空");
+        }
+    } catch(e){
+        console.error(e);
+        let errorMsg = e.message;
+        if(errorMsg.includes("signal is aborted")) errorMsg = "请求超时";
+        else if(errorMsg.includes("429")) errorMsg = "请求过于频繁";
+        showToast("单条总结失败: "+errorMsg);
+    }
+}
+
+function updatePendingBadge(){
+    let data = roleData[currentEditRole];
+    let count = data && data.pendingMemoryFacts ? data.pendingMemoryFacts.length : 0;
+    let badge = document.getElementById("pendingBadge");
+    if(badge) badge.innerText = count;
+}
+
+function switchMemoryView(view){
+    const confirmedView = document.getElementById("memoryConfirmedView");
+    const pendingView = document.getElementById("memoryPendingView");
+    const confirmedTab = document.getElementById("memoryTabConfirmed");
+    const pendingTab = document.getElementById("memoryTabPending");
+    if(view === 'confirmed'){
+        confirmedView.style.display = "block";
+        pendingView.style.display = "none";
+        confirmedTab.classList.add("active");
+        pendingTab.classList.remove("active");
+        renderEditMemoryFacts();
+    } else {
+        confirmedView.style.display = "none";
+        pendingView.style.display = "block";
+        confirmedTab.classList.remove("active");
+        pendingTab.classList.add("active");
+        renderPendingMemoryFacts();
+    }
+}
+
+function renderEditMemoryFacts(){
+    let facts = roleData[currentEditRole]?.memoryFacts || [];
+    let container = document.getElementById("editMemoryFactsList");
+    if(!container) return;
+    if(!facts.length){ container.innerHTML='<div style="color:#aaa; text-align:center; padding:16px;">暂无已确认记忆，点击“+添加事实”或确认待确认记忆</div>'; return; }
+    container.innerHTML = facts.map((fact,idx)=>`<div class="item-row">${escapeHtml(fact.text)} <button class="icon-btn-small edit-mem-fact" data-idx="${idx}" title="编辑">✏️</button> <button class="icon-btn-small del-mem-fact" data-idx="${idx}" title="删除">🗑️</button></div>`).join('');
+    document.querySelectorAll('.edit-mem-fact').forEach(btn=>{
+        btn.onclick=()=>{
+            let idx=parseInt(btn.dataset.idx);
+            let fact = roleData[currentEditRole].memoryFacts[idx];
+            let newText = prompt("编辑记忆:", fact.text);
+            if(newText && newText.trim() !== fact.text){
+                fact.text = newText.trim();
+                saveAll();
+                renderEditMemoryFacts();
+                showToast("记忆已更新");
+            }
+        };
+    });
+    document.querySelectorAll('.del-mem-fact').forEach(btn=>{
+        btn.onclick=()=>{
+            let idx=parseInt(btn.dataset.idx);
+            roleData[currentEditRole].memoryFacts.splice(idx,1);
+            saveAll();
+            renderEditMemoryFacts();
+            showToast("已删除记忆");
+        };
+    });
+}
+
+function renderPendingMemoryFacts(){
+    let facts = roleData[currentEditRole]?.pendingMemoryFacts || [];
+    let container = document.getElementById("editPendingMemoryList");
+    if(!container) return;
+    if(!facts.length){ container.innerHTML='<div style="color:#aaa; text-align:center; padding:16px;">暂无待确认记忆</div>'; return; }
+    container.innerHTML = facts.map((fact,idx)=>`
+        <div class="item-row">${escapeHtml(fact.text)} 
+            <button class="icon-btn-small confirm-mem-fact" data-idx="${idx}" title="确认">✅</button>
+            <button class="icon-btn-small edit-pending-fact" data-idx="${idx}" title="编辑后确认">✏️</button>
+            <button class="icon-btn-small del-pending-fact" data-idx="${idx}" title="丢弃">🗑️</button>
+        </div>
+    `).join('');
+    document.querySelectorAll('.confirm-mem-fact').forEach(btn=>{
+        btn.onclick=()=>{
+            let idx = parseInt(btn.dataset.idx);
+            let fact = roleData[currentEditRole].pendingMemoryFacts[idx];
+            roleData[currentEditRole].memoryFacts.push({ id:generateMsgId(), text:fact.text, timestamp:Date.now(), importance:0.7 });
+            roleData[currentEditRole].pendingMemoryFacts.splice(idx,1);
+            saveAll();
+            renderPendingMemoryFacts();
+            renderEditMemoryFacts();
+            updatePendingBadge();
+            showToast("已确认记忆");
+        };
+    });
+    document.querySelectorAll('.edit-pending-fact').forEach(btn=>{
+        btn.onclick=()=>{
+            let idx = parseInt(btn.dataset.idx);
+            let fact = roleData[currentEditRole].pendingMemoryFacts[idx];
+            let newText = prompt("编辑记忆（确认后直接加入已确认列表）:", fact.text);
+            if(newText && newText.trim() !== fact.text){
+                roleData[currentEditRole].memoryFacts.push({ id:generateMsgId(), text:newText.trim(), timestamp:Date.now(), importance:0.7 });
+                roleData[currentEditRole].pendingMemoryFacts.splice(idx,1);
+                saveAll();
+                renderPendingMemoryFacts();
+                renderEditMemoryFacts();
+                updatePendingBadge();
+                showToast("已编辑并确认");
+            } else if(newText && newText.trim() === fact.text){
+                roleData[currentEditRole].memoryFacts.push({ id:generateMsgId(), text:fact.text, timestamp:Date.now(), importance:0.7 });
+                roleData[currentEditRole].pendingMemoryFacts.splice(idx,1);
+                saveAll();
+                renderPendingMemoryFacts();
+                renderEditMemoryFacts();
+                updatePendingBadge();
+                showToast("已确认记忆");
+            }
+        };
+    });
+    document.querySelectorAll('.del-pending-fact').forEach(btn=>{
+        btn.onclick=()=>{
+            let idx = parseInt(btn.dataset.idx);
+            roleData[currentEditRole].pendingMemoryFacts.splice(idx,1);
+            saveAll();
+            renderPendingMemoryFacts();
+            updatePendingBadge();
+            showToast("已丢弃");
+        };
+    });
 }
 
 function getSilenceDuration(text){
@@ -2268,7 +2499,7 @@ function renderRolesList(){
 function openRoleDetail(roleName){
     currentEditRole=roleName;
     document.getElementById("roleDetailTitle").innerText=`编辑 ${roleName}`;
-    let data=roleData[roleName]||{ avatar:"", userAvatar:"", chatBackground:"", persona:"", aiName: roleName, memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, userPersona:"" };
+    let data=roleData[roleName]||{ avatar:"", userAvatar:"", chatBackground:"", persona:"", aiName: roleName, memoryFacts:[], pendingMemoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, userPersona:"" };
     document.getElementById("editRoleName").value=roleName;
     document.getElementById("editAiName").value=data.aiName||roleName;
     document.getElementById("editPersonaPrompt").value=data.persona||"";
@@ -2284,38 +2515,11 @@ function openRoleDetail(roleName){
         else{ userAvatarPreview.style.backgroundImage=""; userAvatarPreview.innerText="👤"; userAvatarPreview.style.fontSize="40px"; }
     }
     renderEditMemoryFacts();
+    renderPendingMemoryFacts();
+    updatePendingBadge();
     renderEditWorldbook();
     document.getElementById("rolesPage").style.display="none";
     document.getElementById("roleDetailPage").style.display="flex";
-}
-function renderEditMemoryFacts(){
-    let facts=roleData[currentEditRole]?.memoryFacts||[];
-    let container=document.getElementById("editMemoryFactsList");
-    if(!container) return;
-    if(!facts.length){ container.innerHTML='<div style="color:#aaa; text-align:center; padding:16px;">暂无长期记忆，点击“+添加事实”</div>'; return; }
-    container.innerHTML=facts.map((fact,idx)=>`<div class="item-row">${escapeHtml(fact.text)} <button class="icon-btn-small edit-mem-fact" data-idx="${idx}" title="编辑">✏️</button> <button class="icon-btn-small del-mem-fact" data-idx="${idx}" title="删除">🗑️</button></div>`).join('');
-    document.querySelectorAll('.edit-mem-fact').forEach(btn=>{
-        btn.onclick=()=>{
-            let idx=parseInt(btn.dataset.idx);
-            let fact = roleData[currentEditRole].memoryFacts[idx];
-            let newText = prompt("编辑记忆:", fact.text);
-            if(newText && newText.trim() !== fact.text){
-                fact.text = newText.trim();
-                saveAll();
-                renderEditMemoryFacts();
-                showToast("记忆已更新");
-            }
-        };
-    });
-    document.querySelectorAll('.del-mem-fact').forEach(btn=>{
-        btn.onclick=()=>{
-            let idx=parseInt(btn.dataset.idx);
-            roleData[currentEditRole].memoryFacts.splice(idx,1);
-            saveAll();
-            renderEditMemoryFacts();
-            showToast("已删除记忆");
-        };
-    });
 }
 function renderEditWorldbook(){
     let container=document.getElementById("editWorldbookList");
@@ -2383,7 +2587,7 @@ function addNewRoleFromList(){
         let aiName = prompt("角色姓名（AI自称）", newName);
         if(!aiName) aiName = newName;
         roles.push(newName);
-        roleData[newName]={ messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:`你叫${aiName}，自然聊天，短句回复。`, aiName:aiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
+        roleData[newName]={ messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, memoryFacts:[], pendingMemoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:`你叫${aiName}，自然聊天，短句回复。`, aiName:aiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
         saveAll();
         updateRoleDropdownMenu();
         renderRolesList();
@@ -2484,7 +2688,7 @@ async function importChatBoxData(file){
                     if(!newAiName) newAiName = newRoleName;
                     if(newRoleName && !roles.includes(newRoleName)){
                         roles.push(newRoleName);
-                        roleData[newRoleName]={ messages:newMessages, location:"家中卧室", schedule:{today:[],tomorrow:[]}, memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:personaContent||`你叫${newAiName}，自然聊天，短句回复。`, aiName:newAiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
+                        roleData[newRoleName]={ messages:newMessages, location:"家中卧室", schedule:{today:[],tomorrow:[]}, memoryFacts:[], pendingMemoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:personaContent||`你叫${newAiName}，自然聊天，短句回复。`, aiName:newAiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
                         saveAll();
                         refreshRoleSelects();
                         renderRolesList();
@@ -2610,7 +2814,9 @@ document.getElementById("savePersonaBtn").onclick=()=>{ saveCurrentRoleDetail();
 document.getElementById("saveUserPersonaBtn").onclick=()=>{ saveCurrentRoleDetail(); };
 document.getElementById("addWbEntryBtn").onclick=addWorldbookEntry;
 document.getElementById("addMemoryFactBtn").onclick=addMemoryFact;
-document.getElementById("manualSummarizeBtn").onclick=()=>{ summarizeLongTermMemory(false); };
+document.getElementById("manualSummarizeBtn").onclick=()=>{ 
+    summarizeLongTermMemory(false);
+};
 document.getElementById("toggleScheduleBtn").onclick=()=>{ let details=document.getElementById("scheduleDetails"); let btn=document.getElementById("toggleScheduleBtn"); if(details.style.display==="none"){ details.style.display="block"; btn.innerHTML="▲ 收起"; }else{ details.style.display="none"; btn.innerHTML="▼ 展开"; } };
 document.querySelectorAll("[data-role-tab]").forEach(btn=>{ btn.onclick=()=>{ let tab=btn.dataset.roleTab; document.getElementById("rolePersonaArea").style.display=tab==="persona"?"block":"none"; document.getElementById("roleMemoryArea").style.display=tab==="memory"?"block":"none"; document.getElementById("roleWorldArea").style.display=tab==="world"?"block":"none"; document.getElementById("roleUserArea").style.display=tab==="user"?"block":"none"; document.querySelectorAll("[data-role-tab]").forEach(b=>b.classList.remove("active")); btn.classList.add("active"); }; });
 document.querySelectorAll(".world-cat-btn").forEach(btn=>{ btn.onclick=()=>{ document.querySelectorAll(".world-cat-btn").forEach(b=>b.classList.remove("active")); btn.classList.add("active"); renderEditWorldbook(); }; });
@@ -2664,6 +2870,8 @@ document.getElementById("resetRoleBgBtn").onclick=()=>{
     showToast("已重置角色聊天背景");
 };
 
+document.getElementById("memoryTabConfirmed").onclick=()=> switchMemoryView('confirmed');
+document.getElementById("memoryTabPending").onclick=()=> switchMemoryView('pending');
 document.querySelectorAll(".theme-btn").forEach(btn=>{ btn.addEventListener("click",()=>{ applyTheme(btn.dataset.theme); }); });
 document.getElementById("fontSizeSlider").addEventListener("input",e=>{ updateFontSize(parseInt(e.target.value)); });
 document.getElementById("borderRadiusSlider").addEventListener("input",e=>{ updateBorderRadius(parseInt(e.target.value)); });
@@ -2729,14 +2937,19 @@ async function summarizeLongTermMemory(silent=false){
         let newMemories = JSON.parse(content);
         if(Array.isArray(newMemories)){
             for(let item of newMemories){
-                let txt = typeof item === 'string' ? item : (item.text || item.content || JSON.stringify(item));
-                if(txt && !data.memoryFacts.some(f=>f.text===txt)){
-                    data.memoryFacts.push({ id:generateMsgId(), text:txt, timestamp:Date.now(), importance:0.7 });
+                let txt = typeof item === 'string' ? item : (item.text || item.content || item.memory || JSON.stringify(item));
+                if(txt && !data.pendingMemoryFacts.some(f=>f.text===txt)){
+                    data.pendingMemoryFacts.push({ id:generateMsgId(), text:txt, timestamp:Date.now(), importance:0.7 });
                 }
             }
             saveAll();
-            if(!silent) showToast("记忆总结完成");
-            if(currentEditRole && document.getElementById("editMemoryFactsList")) renderEditMemoryFacts();
+            let msg = `记忆总结完成，已添加 ${newMemories.length} 条待确认记忆`;
+            if(!silent) showToast(msg);
+            if(currentEditRole && document.getElementById("memoryPendingView")){
+                renderPendingMemoryFacts();
+                updatePendingBadge();
+                switchMemoryView('pending');
+            }
         } else {
             throw new Error("返回数据不是数组");
         }
