@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.10.1 - 待确认记忆修复版</title>
+    <title>DobbyChat · 智能角色陪伴 v2.11 - UI 动效增强 | 滚动按钮 | 标点规则强化</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <style>
@@ -41,6 +41,7 @@
             --context-menu-bg: #2c2c2e;
             --context-menu-text: white;
             --multi-select-bar-bg: rgba(28,28,30,0.95);
+            --focus-glow: 0 0 0 2px rgba(149,236,105,0.4);
         }
         .theme-light {
             --page-bg: rgba(248,246,242,0.85);
@@ -64,6 +65,7 @@
             --context-menu-bg: white;
             --context-menu-text: #111;
             --multi-select-bar-bg: rgba(255,255,255,0.95);
+            --focus-glow: 0 0 0 2px rgba(0,122,255,0.3);
         }
         * {
             -webkit-touch-callout: none !important;
@@ -136,13 +138,15 @@
             align-items: center;
             gap: 28px;
         }
+        /* 按钮按动反馈增强 */
         .bubble, .send-btn, .image-upload-btn, .back-home, .icon-btn, .small-btn, button:not(.icon-btn):not(.send-btn):not(.image-upload-btn) {
-            transition: transform 0.1s ease, background-color 0.1s ease;
+            transition: transform 0.1s ease, background-color 0.1s ease, box-shadow 0.1s ease;
             cursor: pointer;
         }
         .bubble:active, .send-btn:active, .image-upload-btn:active, .back-home:active, .icon-btn:active, .small-btn:active, button:active {
             transform: scale(0.96);
             background-color: rgba(0,0,0,0.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         .bubble {
             background: rgba(255,255,255,0.92);
@@ -209,6 +213,7 @@
             flex: 1;
             letter-spacing: 1px;
         }
+        /* 角色下拉菜单动画 */
         .role-dropdown-menu {
             position: absolute;
             top: 55px;
@@ -221,6 +226,15 @@
             box-shadow: 0 8px 20px rgba(0,0,0,0.3);
             z-index: 100;
             border: 1px solid rgba(0,0,0,0.1);
+            opacity: 0;
+            transform: scale(0.95);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            pointer-events: none;
+        }
+        .role-dropdown-menu.show {
+            opacity: 1;
+            transform: scale(1);
+            pointer-events: auto;
         }
         .role-dropdown-item {
             padding: 10px 16px;
@@ -253,6 +267,18 @@
             margin-bottom: 16px;
             padding-right: 4px;
             transition: padding-left 0.2s;
+            scroll-behavior: smooth;
+        }
+        /* 自定义滚动条 */
+        .chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+        .chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(128,128,128,0.5);
+            border-radius: 4px;
         }
         .timestamp {
             text-align: center;
@@ -270,6 +296,15 @@
             align-items: flex-start;
             margin-bottom: 6px;
             position: relative;
+            animation: fadeInUp 0.15s ease forwards;
+            opacity: 0;
+            transform: translateY(4px);
+        }
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
         .message-row.user { justify-content: flex-end; }
         .message-row.ai { justify-content: flex-start; }
@@ -349,7 +384,7 @@
             text-shadow: none;
             transition: opacity 0.1s;
         }
-        .regenerate-icon:active { opacity: 0.6; }
+        .regenerate-icon:active { opacity: 0.6; transform: scale(0.96); }
         .version-indicator {
             display: flex;
             align-items: center;
@@ -368,7 +403,7 @@
             padding: 0 4px;
             user-select: none;
         }
-        .version-arrow:active { background: rgba(255,255,255,0.3); border-radius: 4px; }
+        .version-arrow:active { background: rgba(255,255,255,0.3); border-radius: 4px; transform: scale(0.96); }
         .chat-input-area {
             display: flex;
             gap: 8px;
@@ -395,7 +430,10 @@
             font-family: inherit;
             height: 36px;
             max-height: 120px;
-            transition: height 0.1s ease;
+            transition: box-shadow 0.2s;
+        }
+        .chat-input:focus {
+            box-shadow: var(--focus-glow);
         }
         .chat-input::placeholder {
             color: var(--input-placeholder);
@@ -454,6 +492,36 @@
             margin-left: auto;
             margin-right: 2px;
             flex-shrink: 0;
+        }
+        /* 浮动滚动按钮 */
+        .scroll-to-bottom {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+            border: none;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 250;
+            transition: opacity 0.2s, transform 0.1s;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .scroll-to-bottom.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .scroll-to-bottom:active {
+            transform: scale(0.92);
         }
         .transfer-card {
             background: #F2A24D;
@@ -918,6 +986,21 @@
             align-items: center;
             margin-bottom: 12px;
         }
+        /* 空状态 */
+        .empty-chat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            color: var(--timestamp-color);
+            gap: 12px;
+        }
+        .empty-chat-icon {
+            font-size: 48px;
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body>
@@ -940,7 +1023,7 @@
             <button class="icon-btn" id="searchChatBtn">🔍</button>
             <button class="icon-btn" id="openRoleParamsBtn">⚙️</button>
         </div>
-        <div id="roleDropdownMenu" class="role-dropdown-menu" style="display:none;"></div>
+        <div id="roleDropdownMenu" class="role-dropdown-menu"></div>
         <div class="chat-messages" id="chatMessagesContainer"></div>
         <div class="chat-input-area">
             <textarea id="messageInput" class="chat-input" placeholder="输入消息..." rows="1"></textarea>
@@ -948,6 +1031,7 @@
             <button id="imageUploadBtn" class="image-upload-btn">➕</button>
         </div>
     </div>
+    <button id="scrollToBottomBtn" class="scroll-to-bottom">↓</button>
     <div id="locationPage" class="page">
         <div class="header"><button class="back-home" data-home>←</button><div class="page-title">📍 地点</div></div>
         <div class="card-list">
@@ -1387,18 +1471,20 @@ function buildBaseSystemPrompt(){
 
 12. **文字长度与标点习惯**：
     - 话多话少本身就在传达情绪。句号可能代表冷淡，省略号代表犹豫，没有标点代表急切。
-    - 普通陈述句末尾不加句号。句号只用于强调、命令、终结话题或制造压迫感。
+    - **【强制】普通陈述句末尾绝对不得加句号。** 句号只用于强调、命令、终结话题或制造压迫感。
     - 无语、不想说话、懒得争辩时，可以只发一个“。”或“……”。
     - “？”可以单独成句，表示质疑或“你认真的？”。
     - 允许连用感叹号（“你疯了！！！”）表达强烈情绪。
     - 允许用空格代替逗号，制造更随意的碎句感。
+    - 违反句号规则会严重破坏角色真实感。
 
-13. **沉默也是台词**：可以只回“嗯”“哦”，或者岔开话题。回避某个问题本身就是在表达。
+13. **沉默也是台词**：可以只回“嗯”“哦”，或者岔开话题。回避某个问题本身就是在表达。允许不回复（沉默），只要对方没追问即可。
 
 14. **主动报备与时间感知**：
     - 你不需要每次回复都提及自己的位置或状态。报备一次后，至少隔2-3条只回话的回复，才允许再次主动报备。
     - 如果用户超过2小时没出现，你的回复应自然带出“我在这期间做了什么”和“你怎么消失了”。
     - 你说过自己在做什么后，在合理时间内不能瞬移到另一件事。例如说“在地铁上”，20分钟内不能说“到家了”。
+    - **生活起居提醒**：可以提醒用户一次（如“很晚了”）。用户拒绝或忽略后，立即停止，不再重复。你不是监护人。
 
 15. **历史回响**：你记得和用户之间发生过的那些重要的事。在合适的时机，可以自然地提起之前聊过的话题或发生过的事，就像朋友聊天时突然想起来那样。不要刻意，每3-5轮提一次即可。绝对不要复述用户的话，而是以你自己的想法引出。
 
@@ -1891,22 +1977,22 @@ async function autoGenerateReplyAfterDelete(){
     }
 }
 
+// 增强的时间戳格式化
 function formatTimestamp(ts){
-    const date=new Date(ts);
-    const now=new Date();
-    const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-    const yesterday=new Date(today);
-    yesterday.setDate(yesterday.getDate()-1);
-    const msgDate=new Date(date.getFullYear(),date.getMonth(),date.getDate());
-    const diffDays=Math.floor((today-msgDate)/(1000*60*60*24));
-    const hours=date.getHours().toString().padStart(2,'0');
-    const minutes=date.getMinutes().toString().padStart(2,'0');
-    const timeStr=`${hours}:${minutes}`;
-    if(msgDate.getTime()===today.getTime()) return timeStr;
-    if(msgDate.getTime()===yesterday.getTime()) return `昨天 ${timeStr}`;
-    if(diffDays>=2 && diffDays<=7){ const weekdays=['周日','周一','周二','周三','周四','周五','周六']; return `${weekdays[date.getDay()]} ${timeStr}`; }
-    if(date.getFullYear()===now.getFullYear()){ const month=(date.getMonth()+1).toString().padStart(2,'0'); const day=date.getDate().toString().padStart(2,'0'); return `${month}月${day}日 ${timeStr}`; }
-    const year=date.getFullYear(); const month=(date.getMonth()+1).toString().padStart(2,'0'); const day=date.getDate().toString().padStart(2,'0'); return `${year}年${month}月${day}日 ${timeStr}`;
+    const date = new Date(ts);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const hours = date.getHours().toString().padStart(2,'0');
+    const minutes = date.getMinutes().toString().padStart(2,'0');
+    const timeStr = `${hours}:${minutes}`;
+    if(msgDate.getTime() === today.getTime()) return timeStr;
+    if(msgDate.getTime() === yesterday.getTime()) return `昨天 ${timeStr}`;
+    const month = (date.getMonth()+1).toString().padStart(2,'0');
+    const day = date.getDate().toString().padStart(2,'0');
+    return `${month}/${day} ${timeStr}`;
 }
 
 let currentDisplayCount = 50;      
@@ -1925,6 +2011,11 @@ function renderChat(){
     let userAvatarUrl=data.userAvatar||"";
     let html='';
     let lastTimestamp=null;
+    if(messages.length === 0){
+        html = `<div class="empty-chat"><div class="empty-chat-icon">💬</div><div>暂无消息，开始聊天吧</div></div>`;
+        container.innerHTML = html;
+        return;
+    }
     for(let i=0;i<messages.length;i++){
         const msg=messages[i];
         const curTs=msg.timestamp;
@@ -2102,7 +2193,7 @@ async function summarizeSingleMessage(msgId){
     let context = data.messages.slice(start, end+1);
     let contextStr = context.map((m, i) => {
         let prefix = (i === idx-start) ? "【目标消息】" : "";
-        return `${prefix}${m.role==='user'?'我':currentRole}: ${m.content}`;
+        return `${prefix}${m.role==='user'?'我':data.aiName}: ${m.content}`;
     }).join("\n");
     let prompt = `根据以下对话上下文，只针对【目标消息】的内容，提炼出一条简短的事实记忆。用一句陈述句输出，不要加任何额外解释。\n上下文：\n${contextStr}`;
     let config = getMemorySummaryApiConfig();
@@ -2282,7 +2373,7 @@ function getSilenceDuration(text){
 async function buildActiveMessagePrompt(){
     let data=getCurrentData();
     let lastMessages=data.messages.slice(-6);
-    let recentContext=lastMessages.map(m=>`${m.role==='user'?'我':'你'}: ${m.content}`).join("\n");
+    let recentContext=lastMessages.map(m=>`${m.role==='user'?'我':data.aiName}: ${m.content}`).join("\n");
     let todaySchedule=data.schedule.today.map(s=>`${s.time} ${s.act}`).join("；");
     let statusInfo=`当前地点：${data.location}。${todaySchedule?`今日行程：${todaySchedule}`:""}`;
     let memoryFacts=(data.memoryFacts||[]).slice(0,3).map(f=>f.text).join("；");
@@ -2464,12 +2555,19 @@ function updateRoleDropdownMenu(){
 }
 function toggleRoleDropdown(){
     const menu=document.getElementById("roleDropdownMenu");
-    if(menu.style.display==="none" || menu.style.display===""){
+    if(menu.classList.contains("show")){
+        menu.classList.remove("show");
+    } else {
         updateRoleDropdownMenu();
-        menu.style.display="block";
-        const closeHandler=e=>{ if(!menu.contains(e.target) && e.target.id!=="roleDropdownBtn"){ menu.style.display="none"; document.removeEventListener("click",closeHandler); } };
-        setTimeout(()=>document.addEventListener("click",closeHandler),10);
-    }else menu.style.display="none";
+        menu.classList.add("show");
+        const closeHandler = (e) => {
+            if(!menu.contains(e.target) && e.target.id !== "roleDropdownBtn"){
+                menu.classList.remove("show");
+                document.removeEventListener("click", closeHandler);
+            }
+        };
+        setTimeout(() => document.addEventListener("click", closeHandler), 10);
+    }
 }
 function updateChatBackground(){
     const data = getCurrentData();
@@ -2843,6 +2941,26 @@ document.getElementById("searchModal").addEventListener("click",e=>{ if(e.target
 document.getElementById("roleDropdownBtn").onclick=toggleRoleDropdown;
 document.getElementById("darkModeToggle").addEventListener("change", toggleDarkMode);
 
+// 滚动到底部按钮逻辑
+const scrollBtn = document.getElementById("scrollToBottomBtn");
+const chatContainer = document.getElementById("chatMessagesContainer");
+if(chatContainer && scrollBtn){
+    const checkScroll = () => {
+        const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
+        if(isNearBottom){
+            scrollBtn.classList.remove("show");
+        } else {
+            scrollBtn.classList.add("show");
+        }
+    };
+    chatContainer.addEventListener("scroll", checkScroll);
+    scrollBtn.addEventListener("click", () => {
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: "smooth" });
+    });
+    // 初始检查
+    setTimeout(checkScroll, 100);
+}
+
 document.getElementById("uploadGlobalWallpaperBtn").onclick=()=>{ handleImageUpload(dataUrl=>{ globalWallpaper=dataUrl; document.getElementById("wallpaperBg").style.backgroundImage=`url(${globalWallpaper})`; saveAll(); showToast("主页背景已更新"); }); };
 document.getElementById("resetGlobalWallpaperBtn").onclick=()=>{ globalWallpaper=""; document.getElementById("wallpaperBg").style.backgroundImage="url('https://picsum.photos/id/104/800/1200')"; saveAll(); showToast("已重置默认主页背景"); };
 document.getElementById("uploadRoleAvatarBtn").onclick=()=>{ if(!currentEditRole) return; handleImageUpload(dataUrl=>{ roleData[currentEditRole].avatar=dataUrl; saveAll(); const preview=document.getElementById("roleAvatarPreview"); if(preview){ preview.style.backgroundImage=`url(${dataUrl})`; preview.style.backgroundSize="cover"; preview.innerText=""; } showToast("角色头像已更新"); }); };
@@ -2901,7 +3019,7 @@ async function summarizeLongTermMemory(silent=false){
     let data=getCurrentData();
     if(data.messages.length<10){ if(!silent) showToast("对话内容太少，无法总结"); return; }
     if(!silent) showToast("正在总结记忆...");
-    let recent=data.messages.slice(-15).map(m=>`${m.role==='user'?'我':currentRole}: ${m.content}`).join("\n");
+    let recent=data.messages.slice(-15).map(m=>`${m.role==='user'?'我':data.aiName}: ${m.content}`).join("\n");
     let prompt=`根据以下最近的对话内容，提炼出需要长期记住的用户偏好、关系、重要事件等。输出JSON数组格式，每个元素是一条记忆字符串。\n最近对话：\n${recent}`;
     let config=getMemorySummaryApiConfig();
     if(!config.apiKey){ if(!silent) showToast("未配置任何 API Key，无法总结"); return; }
