@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.8 - 记忆统一 | 前缀精简 | 费用优化</title>
+    <title>DobbyChat · 智能角色陪伴 v2.9 - 记忆总结兼容优化 | 费用优化</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <style>
@@ -67,19 +67,16 @@
             --context-menu-text: #111;
             --multi-select-bar-bg: rgba(255,255,255,0.95);
         }
-        /* 全局禁止长按菜单及选择（输入框除外） */
         * {
             -webkit-touch-callout: none !important;
             user-select: none !important;
         }
-        /* 允许输入框及可编辑区域正常选择文字 */
         .chat-input, .chat-input *,
         input, textarea, select,
         [contenteditable="true"] {
             -webkit-touch-callout: default !important;
             user-select: text !important;
         }
-        /* 图片元素加强禁止 */
         img, .image-thumb {
             -webkit-touch-callout: none !important;
             pointer-events: auto;
@@ -102,7 +99,6 @@
             display: flex;
             flex-direction: column;
         }
-        /* 全局背景（仅主页使用） */
         .wallpaper-bg {
             position: absolute;
             top:0; left:0; width:100%; height:100%;
@@ -111,7 +107,6 @@
             z-index:0;
             display: none;
         }
-        /* 聊天页独立背景层 */
         .chat-wallpaper-bg {
             position: absolute;
             top:0; left:0; width:100%; height:100%;
@@ -131,7 +126,6 @@
             flex-direction: column;
             padding: 20px 16px;
         }
-        /* 聊天页取消半透明遮罩，让背景图完全可见 */
         .chat-page {
             background: transparent !important;
             backdrop-filter: none !important;
@@ -144,7 +138,6 @@
             align-items: center;
             gap: 28px;
         }
-        /* 所有气泡按钮的按动反馈 */
         .bubble, .send-btn, .image-upload-btn, .back-home, .icon-btn, .small-btn, button:not(.icon-btn):not(.send-btn):not(.image-upload-btn) {
             transition: transform 0.1s ease, background-color 0.1s ease;
             cursor: pointer;
@@ -529,7 +522,6 @@
             font-size: 12px;
             cursor: pointer;
         }
-        /* 记忆列表中的图标按钮无背景样式 */
         .icon-btn-small {
             background: transparent;
             border: none;
@@ -884,7 +876,6 @@
         input:checked + .slider:before {
             transform: translateX(24px);
         }
-        /* 分页加载时的加载提示 */
         .loading-indicator {
             text-align: center;
             padding: 12px;
@@ -1157,7 +1148,6 @@ function getCurrentData(){
     if(!d.memoryFacts) d.memoryFacts=[];
     if(!d.activeMsg) d.activeMsg={ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() };
     if(d.aiName === undefined) d.aiName = currentRole;
-    // 兼容旧数据：如果存在 longMemories，忽略它；如果 memoryFacts 为空但 longMemories 有值，迁移一次（可选，为安全不自动迁移）
     let todayStr=new Date().toDateString();
     if(d.activeMsg.lastCheckDate!==todayStr){ d.activeMsg.lastCheckDate=todayStr; d.activeMsg.sentToday=0; }
     return d;
@@ -1172,9 +1162,7 @@ function saveAll(){
 }
 function loadAll(){
     let raw=localStorage.getItem("sullyos_data");
-    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; // 确保 memoryFacts 存在，若旧数据有 longMemories 可考虑迁移，但为了简洁不做迁移
-        if(!roleData[role].memoryFacts) roleData[role].memoryFacts=[];
-        } }
+    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; if(!roleData[role].memoryFacts) roleData[role].memoryFacts=[]; } }
     let today=new Date().toDateString();
     if(today!==lastActiveDate){ activeMsgCountToday=0; lastActiveDate=today; saveAll(); }
     let sec=localStorage.getItem(SECONDARY_SETTINGS_KEY); if(sec){ try{ let s=JSON.parse(sec); secondarySettings={...secondarySettings,...s}; }catch(e){} }
@@ -1319,11 +1307,10 @@ function scoreMemoryFact(fact,queryText){
 function retrieveRelevantMemoryFacts(userMessage){
     let facts=getCurrentData().memoryFacts||[];
     if(!facts.length) return [];
-    let scored=facts.map(f=>({text:f.text,score:scoreMemoryFact(f,userMessage)})).filter(s=>s.score>0).sort((a,b)=>b.score-a.score).slice(0,3); // 最多3条
+    let scored=facts.map(f=>({text:f.text,score:scoreMemoryFact(f,userMessage)})).filter(s=>s.score>0).sort((a,b)=>b.score-a.score).slice(0,3);
     return scored.map(s=>s.text);
 }
 
-// ======================= 固定 System Prompt（缓存友好，优化版15条） =======================
 function buildBaseSystemPrompt(){
     let data = getCurrentData();
     let transferRule = `\n\n💰 转账规则：如果你要给用户转账，请单独发送一条消息，内容严格为 🧧TRANSFER|金额|备注🧧，例如 🧧TRANSFER|88.88|请你喝奶茶🧧。金额数字保留两位小数，备注最多20字。不要与其他文字混合。`;
@@ -1374,7 +1361,6 @@ function buildBaseSystemPrompt(){
     return `${livingRules}\n\n${data.persona}${transferRule}`;
 }
 
-// ======================= 系统信息标记块（动态，仅用于当前请求，不存储） =======================
 function buildSystemInfoBlock(){
     let data = getCurrentData();
     let now = new Date();
@@ -1396,7 +1382,6 @@ function buildSystemInfoBlock(){
         else if(gapMin >= 1440) lines.push(`上次聊天：${Math.floor(gapMin/1440)}天前`);
     }
     if(data.userPersona) lines.push(`对方：${data.userPersona}`);
-    // 世界书仅在非空时显示（人物和地点）
     if(data.worldbook){
         let wb = data.worldbook;
         let wbParts = [];
@@ -1411,7 +1396,6 @@ function buildCurrentUserMessageWithPrefix(currentUserMessage, scheduleContext="
     let lines = buildSystemInfoBlock();
     if(scheduleContext) lines.push(scheduleContext);
     if(hotContext) lines.push(hotContext);
-    // 检索相关记忆（最多3条）
     let facts = retrieveRelevantMemoryFacts(currentUserMessage);
     if(facts.length) lines.push(`相关记忆：${facts.join("；")}`);
     let block = lines.join("\n");
@@ -1529,7 +1513,6 @@ async function addAiBubblesSequentially(bubbles){
     await checkAutoSummary();
 }
 
-// ======================= 发送消息（先显示用户消息，再调 API） =======================
 async function sendMessage(text, skipActiveReset=false){
     if(!text.trim() || isWaitingForAI) return;
     updateLocationAuto();
@@ -2552,7 +2535,6 @@ function showPage(pageId){
     document.querySelectorAll('.page').forEach(p=>p.style.display='none');
     document.getElementById(pageId).style.display='flex';
     
-    // 控制全局壁纸：只在主页显示
     const wallpaper = document.getElementById("wallpaperBg");
     const chatWallpaper = document.getElementById("chatWallpaperBg");
     if (pageId === 'homePage') {
@@ -2565,7 +2547,7 @@ function showPage(pageId){
     } else {
         if (wallpaper) wallpaper.style.display = "none";
         if (pageId === 'chatPage') {
-            updateChatBackground(); // 聊天页独立背景
+            updateChatBackground();
         } else {
             if (chatWallpaper) chatWallpaper.style.display = "none";
         }
@@ -2716,7 +2698,6 @@ async function summarizeLongTermMemory(silent=false){
     let config=getMemorySummaryApiConfig();
     if(!config.apiKey){ if(!silent) showToast("未配置任何 API Key，无法总结"); return; }
     try{
-        // 添加超时控制
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
         let res = await fetch(`${config.baseUrl}/chat/completions`,{
@@ -2737,7 +2718,6 @@ async function summarizeLongTermMemory(silent=false){
             signal: controller.signal
         });
         clearTimeout(timeoutId);
-        
         if(!res.ok){
             let errorText = await res.text();
             throw new Error(`API错误 ${res.status}: ${errorText.substring(0,200)}`);
@@ -2765,6 +2745,7 @@ async function summarizeLongTermMemory(silent=false){
         let errorMsg = e.message;
         if(errorMsg.includes("signal is aborted")) errorMsg = "请求超时，请检查网络后重试";
         else if(errorMsg.includes("JSON")) errorMsg = "API返回数据格式错误，可能是模型输出异常";
+        else if(errorMsg.includes("429")) errorMsg = "请求过于频繁，请稍后再试";
         alert("总结失败详情:\n" + errorMsg);
         if(!silent) showToast("总结失败: "+errorMsg);
     }
