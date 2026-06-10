@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.7 - 聊天背景透明 | 角色列表颜色修复 | 长期记忆编辑</title>
+    <title>DobbyChat · 智能角色陪伴 v2.8 - 记忆统一 | 前缀精简 | 费用优化</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <style>
@@ -578,7 +578,7 @@
             align-items: center;
             gap: 12px;
             border: 1px solid var(--border-light);
-            color: var(--card-text);  /* 修复深色模式下文字颜色 */
+            color: var(--card-text);
         }
         .role-avatar {
             width: 44px;
@@ -1132,7 +1132,7 @@ function compressAndUpload(file,maxSize=300,quality=0.7){ return new Promise((re
 function getCurrentData(){
     if(!roleData[currentRole]){
         roleData[currentRole]={
-            messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[],
+            messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]},
             memoryFacts:[],
             worldbook:{人物:[],地点:[],世界观:[],自定义:[]},
             persona:`你叫${currentRole}，说话简短自然，像朋友聊天。`,
@@ -1157,6 +1157,7 @@ function getCurrentData(){
     if(!d.memoryFacts) d.memoryFacts=[];
     if(!d.activeMsg) d.activeMsg={ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() };
     if(d.aiName === undefined) d.aiName = currentRole;
+    // 兼容旧数据：如果存在 longMemories，忽略它；如果 memoryFacts 为空但 longMemories 有值，迁移一次（可选，为安全不自动迁移）
     let todayStr=new Date().toDateString();
     if(d.activeMsg.lastCheckDate!==todayStr){ d.activeMsg.lastCheckDate=todayStr; d.activeMsg.sentToday=0; }
     return d;
@@ -1171,7 +1172,9 @@ function saveAll(){
 }
 function loadAll(){
     let raw=localStorage.getItem("sullyos_data");
-    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; } }
+    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; // 确保 memoryFacts 存在，若旧数据有 longMemories 可考虑迁移，但为了简洁不做迁移
+        if(!roleData[role].memoryFacts) roleData[role].memoryFacts=[];
+        } }
     let today=new Date().toDateString();
     if(today!==lastActiveDate){ activeMsgCountToday=0; lastActiveDate=today; saveAll(); }
     let sec=localStorage.getItem(SECONDARY_SETTINGS_KEY); if(sec){ try{ let s=JSON.parse(sec); secondarySettings={...secondarySettings,...s}; }catch(e){} }
@@ -1316,7 +1319,7 @@ function scoreMemoryFact(fact,queryText){
 function retrieveRelevantMemoryFacts(userMessage){
     let facts=getCurrentData().memoryFacts||[];
     if(!facts.length) return [];
-    let scored=facts.map(f=>({text:f.text,score:scoreMemoryFact(f,userMessage)})).filter(s=>s.score>0).sort((a,b)=>b.score-a.score).slice(0,5);
+    let scored=facts.map(f=>({text:f.text,score:scoreMemoryFact(f,userMessage)})).filter(s=>s.score>0).sort((a,b)=>b.score-a.score).slice(0,3); // 最多3条
     return scored.map(s=>s.text);
 }
 
@@ -1375,24 +1378,25 @@ function buildBaseSystemPrompt(){
 function buildSystemInfoBlock(){
     let data = getCurrentData();
     let now = new Date();
-    let timeStr = `${now.getMonth()+1}月${now.getDate()}日 ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+    let month = now.getMonth()+1;
+    let day = now.getDate();
+    let hours = now.getHours();
+    let minutes = now.getMinutes().toString().padStart(2,'0');
     let weekday = ["日","一","二","三","四","五","六"][now.getDay()];
-    let season = ["冬","春","夏","秋"][Math.floor(now.getMonth()/3)];
+    let timeStr = `${month}月${day}日 ${hours}:${minutes} 周${weekday}`;
     let lines = [];
     lines.push(`🔹 系统信息：`);
-    lines.push(`当前时间：${timeStr}，星期${weekday}，${season}天。`);
-    if(data.location) lines.push(`${data.aiName} 目前位于：${data.location}。`);
+    lines.push(timeStr);
+    if(data.location) lines.push(`${data.aiName}在${data.location}`);
     let lastMsgTime = data.messages.length > 0 ? data.messages[data.messages.length-1].timestamp : null;
     if(lastMsgTime){
         let gapMin = Math.floor((Date.now() - lastMsgTime) / 60000);
-        if(gapMin >= 1 && gapMin < 60) lines.push(`距离上次聊天过了 ${gapMin} 分钟。`);
-        else if(gapMin >= 60 && gapMin < 1440) lines.push(`距离上次聊天过了 ${Math.floor(gapMin/60)} 小时。`);
-        else if(gapMin >= 1440) lines.push(`距离上次聊天过了 ${Math.floor(gapMin/1440)} 天。`);
+        if(gapMin >= 1 && gapMin < 60) lines.push(`上次聊天：${gapMin}分钟前`);
+        else if(gapMin >= 60 && gapMin < 1440) lines.push(`上次聊天：${Math.floor(gapMin/60)}小时前`);
+        else if(gapMin >= 1440) lines.push(`上次聊天：${Math.floor(gapMin/1440)}天前`);
     }
-    if(data.userPersona) lines.push(`关于对方：${data.userPersona}`);
-    if(data.longMemories && data.longMemories.length > 0){
-        lines.push(`你记得：${data.longMemories.slice(0,3).join("；")}`);
-    }
+    if(data.userPersona) lines.push(`对方：${data.userPersona}`);
+    // 世界书仅在非空时显示（人物和地点）
     if(data.worldbook){
         let wb = data.worldbook;
         let wbParts = [];
@@ -1407,6 +1411,7 @@ function buildCurrentUserMessageWithPrefix(currentUserMessage, scheduleContext="
     let lines = buildSystemInfoBlock();
     if(scheduleContext) lines.push(scheduleContext);
     if(hotContext) lines.push(hotContext);
+    // 检索相关记忆（最多3条）
     let facts = retrieveRelevantMemoryFacts(currentUserMessage);
     if(facts.length) lines.push(`相关记忆：${facts.join("；")}`);
     let block = lines.join("\n");
@@ -2280,7 +2285,7 @@ function renderRolesList(){
 function openRoleDetail(roleName){
     currentEditRole=roleName;
     document.getElementById("roleDetailTitle").innerText=`编辑 ${roleName}`;
-    let data=roleData[roleName]||{ avatar:"", userAvatar:"", chatBackground:"", persona:"", aiName: roleName, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, userPersona:"" };
+    let data=roleData[roleName]||{ avatar:"", userAvatar:"", chatBackground:"", persona:"", aiName: roleName, memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, userPersona:"" };
     document.getElementById("editRoleName").value=roleName;
     document.getElementById("editAiName").value=data.aiName||roleName;
     document.getElementById("editPersonaPrompt").value=data.persona||"";
@@ -2395,7 +2400,7 @@ function addNewRoleFromList(){
         let aiName = prompt("角色姓名（AI自称）", newName);
         if(!aiName) aiName = newName;
         roles.push(newName);
-        roleData[newName]={ messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:`你叫${aiName}，自然聊天，短句回复。`, aiName:aiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
+        roleData[newName]={ messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:`你叫${aiName}，自然聊天，短句回复。`, aiName:aiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
         saveAll();
         updateRoleDropdownMenu();
         renderRolesList();
@@ -2496,7 +2501,7 @@ async function importChatBoxData(file){
                     if(!newAiName) newAiName = newRoleName;
                     if(newRoleName && !roles.includes(newRoleName)){
                         roles.push(newRoleName);
-                        roleData[newRoleName]={ messages:newMessages, location:"家中卧室", schedule:{today:[],tomorrow:[]}, longMemories:[], memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:personaContent||`你叫${newAiName}，自然聊天，短句回复。`, aiName:newAiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
+                        roleData[newRoleName]={ messages:newMessages, location:"家中卧室", schedule:{today:[],tomorrow:[]}, memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:personaContent||`你叫${newAiName}，自然聊天，短句回复。`, aiName:newAiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
                         saveAll();
                         refreshRoleSelects();
                         renderRolesList();
@@ -2707,8 +2712,7 @@ async function summarizeLongTermMemory(silent=false){
     if(data.messages.length<10){ if(!silent) showToast("对话内容太少，无法总结"); return; }
     if(!silent) showToast("正在总结记忆...");
     let recent=data.messages.slice(-30).map(m=>`${m.role==='user'?'我':currentRole}: ${m.content}`).join("\n");
-    let oldMem=data.longMemories.join("\n");
-    let prompt=`根据以下最近的对话内容，以及已有的长期记忆，提炼出需要长期记住的用户偏好、关系、重要事件等。输出JSON数组格式，每个元素是一条记忆字符串。\n已有记忆：${oldMem||"无"}\n最近对话：\n${recent}`;
+    let prompt=`根据以下最近的对话内容，提炼出需要长期记住的用户偏好、关系、重要事件等。输出JSON数组格式，每个元素是一条记忆字符串。\n最近对话：\n${recent}`;
     let config=getMemorySummaryApiConfig();
     if(!config.apiKey){ if(!silent) showToast("未配置任何 API Key，无法总结"); return; }
     try{
@@ -2723,7 +2727,6 @@ async function summarizeLongTermMemory(silent=false){
             for(let txt of newMemories){
                 if(!data.memoryFacts.some(f=>f.text===txt)) data.memoryFacts.push({ id:generateMsgId(), text:txt, timestamp:Date.now(), importance:0.7 });
             }
-            data.longMemories=[...new Set([...data.longMemories,...newMemories])];
             saveAll();
             if(!silent) showToast("记忆总结完成");
             if(currentEditRole && document.getElementById("editMemoryFactsList")) renderEditMemoryFacts();
