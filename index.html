@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.11 - UI 动效增强 | 滚动按钮 | 标点规则强化</title>
+    <title>DobbyChat · 智能角色陪伴 v2.12 - 完整回复版本切换 | 重新思考 | UI 优化</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <style>
@@ -42,6 +42,8 @@
             --context-menu-text: white;
             --multi-select-bar-bg: rgba(28,28,30,0.95);
             --focus-glow: 0 0 0 2px rgba(149,236,105,0.4);
+            --float-btn-bg: rgba(0,0,0,0.5);
+            --float-btn-color: white;
         }
         .theme-light {
             --page-bg: rgba(248,246,242,0.85);
@@ -66,6 +68,8 @@
             --context-menu-text: #111;
             --multi-select-bar-bg: rgba(255,255,255,0.95);
             --focus-glow: 0 0 0 2px rgba(0,122,255,0.3);
+            --float-btn-bg: rgba(255,255,255,0.7);
+            --float-btn-color: #333;
         }
         * {
             -webkit-touch-callout: none !important;
@@ -419,7 +423,7 @@
             flex: 1;
             background: var(--input-bg);
             border: none;
-            padding: 6px 12px;
+            padding: 4px 12px;
             border-radius: 30px;
             outline: none;
             font-size: 16px;
@@ -428,7 +432,7 @@
             overflow-y: auto;
             line-height: 24px;
             font-family: inherit;
-            height: 36px;
+            height: 32px;
             max-height: 120px;
             transition: box-shadow 0.2s;
         }
@@ -442,8 +446,8 @@
             background: var(--send-btn-bg);
             border: none;
             color: var(--send-btn-color);
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             padding: 0;
             border-radius: 30px;
             font-weight: 600;
@@ -483,8 +487,8 @@
             font-size: 24px;
             cursor: pointer;
             padding: 0;
-            width: 36px;
-            height: 36px;
+            width: 32px;
+            height: 32px;
             border-radius: 30px;
             display: inline-flex;
             align-items: center;
@@ -496,16 +500,16 @@
         /* 浮动滚动按钮 */
         .scroll-to-bottom {
             position: fixed;
-            bottom: 80px;
-            right: 20px;
-            width: 44px;
-            height: 44px;
+            bottom: 70px;
+            right: 16px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(10px);
+            background: var(--float-btn-bg);
+            backdrop-filter: blur(8px);
             border: none;
-            color: white;
-            font-size: 24px;
+            color: var(--float-btn-color);
+            font-size: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -514,7 +518,7 @@
             transition: opacity 0.2s, transform 0.1s;
             opacity: 0;
             pointer-events: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
         .scroll-to-bottom.show {
             opacity: 1;
@@ -1278,6 +1282,19 @@ function getCurrentData(){
     if(!d.pendingMemoryFacts) d.pendingMemoryFacts=[];
     if(!d.activeMsg) d.activeMsg={ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() };
     if(d.aiName === undefined) d.aiName = currentRole;
+    // 迁移旧数据：将 versions 转为 fullVersions
+    for(let msg of d.messages){
+        if(msg.role === "ai" && !msg.fullVersions && msg.versions){
+            msg.fullVersions = msg.versions.map(v => [v]);
+            msg.currentVersionIndex = msg.currentVersionIndex || 0;
+            // 可删除 versions 以节省空间，但保留也无害
+        }
+        // 确保 ai 消息有 fullVersions（即使是单条消息）
+        if(msg.role === "ai" && !msg.fullVersions){
+            msg.fullVersions = [[msg.content]];
+            msg.currentVersionIndex = 0;
+        }
+    }
     let todayStr=new Date().toDateString();
     if(d.activeMsg.lastCheckDate!==todayStr){ d.activeMsg.lastCheckDate=todayStr; d.activeMsg.sentToday=0; }
     return d;
@@ -1633,7 +1650,9 @@ async function addAiBubblesSequentially(bubbles){
             content: bubbles[i],
             timestamp: Date.now() + i * 100,
             versions: [bubbles[i]],
-            currentVersionIndex: 0
+            currentVersionIndex: 0,
+            fullVersions: [[bubbles[i]]],
+            hasFullVersions: true
         };
         data.messages.push(newMsg);
         saveAll();
@@ -1662,7 +1681,7 @@ async function sendMessage(text, skipActiveReset=false){
     renderChat();
     document.getElementById("messageInput").value = "";
     let txt = document.getElementById("messageInput");
-    txt.style.height = "36px";
+    txt.style.height = "32px";
     scrollChatBottom();
     
     isWaitingForAI = true;
@@ -1793,82 +1812,105 @@ async function editAiMessageDirectly(msgId, newText){
     if(idx===-1) return;
     let msg=data.messages[idx];
     if(msg.content===newText) return;
-    if(!msg.versions) msg.versions=[msg.content];
-    msg.versions.push(newText);
-    if(msg.versions.length>MAX_VERSIONS) msg.versions.shift();
-    msg.currentVersionIndex=msg.versions.length-1;
-    msg.content=newText;
+    if(!msg.fullVersions){
+        msg.fullVersions = [[msg.content]];
+        msg.currentVersionIndex = 0;
+    }
+    // 将当前版本替换为新文本（单条气泡）
+    let currentVersionBubbles = msg.fullVersions[msg.currentVersionIndex];
+    if(currentVersionBubbles.length === 1){
+        currentVersionBubbles[0] = newText;
+    } else {
+        // 如果当前版本是多气泡，简单替换第一个气泡（复杂情况可扩展，但编辑通常只改单条）
+        currentVersionBubbles[0] = newText;
+    }
+    msg.content = newText;
     saveAll();
     renderChat();
     showToast("已修改消息");
 }
 
 async function regenerateAiMessage(msgId){
-    let data=getCurrentData();
-    let idx=data.messages.findIndex(m=>m.id===msgId && m.role==="ai");
-    if(idx===-1) return;
-    let msg=data.messages[idx];
-    let history=data.messages.slice(0,idx);
-    let apiHistory=history.map(m=>{ if(m.role==="user") return {role:"user",content:m.content}; else return {role:"assistant",content:m.content}; });
+    let data = getCurrentData();
+    let idx = data.messages.findIndex(m => m.id === msgId && m.role === "ai");
+    if(idx === -1) return;
+    let msg = data.messages[idx];
+    // 获取该消息之前的所有消息（不包括这条 AI 消息本身）
+    let history = data.messages.slice(0, idx);
+    let apiHistory = history.map(m => {
+        if(m.role === "user") return {role:"user", content: m.content};
+        else return {role:"assistant", content: m.content};
+    });
     if(isWaitingForAI) return showToast("请稍后");
-    isWaitingForAI=true;
+    isWaitingForAI = true;
     showToast("重新生成中...");
     try{
-        let extra = "\n【强制要求】完全重写你的回答。改变内容、角度或具体细节，不要只是换说法。";
-        let bubbles=await callDeepSeekBubbles(null,apiHistory,extra);
+        // 不添加 extraSystem 指令，让模型自由重新思考
+        let bubbles = await callDeepSeekBubbles(null, apiHistory, "");
         if(!bubbles.length) throw new Error("生成空回复");
-        let newContent=bubbles[0];
-        if(!msg.versions) msg.versions=[msg.content];
-        msg.versions.push(newContent);
-        if(msg.versions.length>MAX_VERSIONS) msg.versions.shift();
-        msg.currentVersionIndex=msg.versions.length-1;
-        msg.content=newContent;
-        data.messages=data.messages.slice(0,idx+1);
+        // 确保 msg 有 fullVersions
+        if(!msg.fullVersions){
+            msg.fullVersions = [[msg.content]];
+            msg.currentVersionIndex = 0;
+        }
+        // 将新气泡数组加入版本列表
+        msg.fullVersions.push(bubbles);
+        let newVersionIdx = msg.fullVersions.length - 1;
+        msg.currentVersionIndex = newVersionIdx;
+        // 删除原消息及其之后的所有消息
+        data.messages = data.messages.slice(0, idx);
+        // 创建新的消息序列
+        let newTimestamp = Date.now();
+        for(let i = 0; i < bubbles.length; i++){
+            let newMsg = {
+                id: generateMsgId(),
+                role: "ai",
+                content: bubbles[i],
+                timestamp: newTimestamp + i * 100,
+                fullVersions: [[bubbles[i]]],  // 新消息初始化版本
+                currentVersionIndex: 0
+            };
+            data.messages.push(newMsg);
+        }
         saveAll();
         renderChat();
-        showToast(`已生成新版本 (${msg.versions.length}/${MAX_VERSIONS})`);
-    }catch(e){ showToast("重新生成失败: "+e.message); }
-    finally{ isWaitingForAI=false; }
-}
-async function switchVersion(msgId,delta){
-    let data=getCurrentData();
-    let idx=data.messages.findIndex(m=>m.id===msgId && m.role==="ai");
-    if(idx===-1) return;
-    let msg=data.messages[idx];
-    if(!msg.versions || msg.versions.length<=1) return;
-    let newIdx=msg.currentVersionIndex+delta;
-    if(newIdx<0 || newIdx>=msg.versions.length) return;
-    if(idx<data.messages.length-1){
-        if(!confirm("切换版本将删除之后的所有消息，是否继续？")) return;
-        data.messages=data.messages.slice(0,idx+1);
+        scrollChatBottom();
+        showToast(`已生成新版本 (${newVersionIdx+1}/${msg.fullVersions.length})`);
+    }catch(e){
+        showToast("重新生成失败: "+e.message);
+    } finally{
+        isWaitingForAI = false;
     }
-    msg.currentVersionIndex=newIdx;
-    msg.content=msg.versions[newIdx];
-    saveAll();
-    renderChat();
 }
 
-async function modifyUserMessageAndRegenerate(msgId,newText){
-    let data=getCurrentData();
-    let idx=data.messages.findIndex(m=>m.id===msgId);
-    if(idx===-1) return;
-    let oldMsg=data.messages[idx];
-    let scheduleCtx = shouldInjectSchedule(newText) ? getScheduleContext() : "";
-    let hotCtx = shouldInjectHot(newText) ? getHotContext() : "";
-    let prefixedCurrentMsg = buildCurrentUserMessageWithPrefix(newText, scheduleCtx, hotCtx);
-    if(isWaitingForAI) return;
-    isWaitingForAI=true;
-    try{
-        let history = data.messages.slice(0,idx);
-        let apiHistory = history.map(m=>{ if(m.role==="user") return {role:"user",content:m.content}; else return {role:"assistant",content:m.content}; });
-        let bubbles=await callDeepSeekBubbles(prefixedCurrentMsg, apiHistory, "");
-        oldMsg.content=newText;
-        data.messages=data.messages.slice(0,idx+1);
-        saveAll();
-        renderChat();
-        await addAiBubblesSequentially(bubbles);
-    }catch(e){ showToast("生成失败: "+e.message); }
-    finally{ isWaitingForAI=false; }
+async function switchVersion(msgId, delta){
+    let data = getCurrentData();
+    let idx = data.messages.findIndex(m => m.id === msgId && m.role === "ai");
+    if(idx === -1) return;
+    let msg = data.messages[idx];
+    if(!msg.fullVersions || msg.fullVersions.length <= 1) return;
+    let newIdx = msg.currentVersionIndex + delta;
+    if(newIdx < 0 || newIdx >= msg.fullVersions.length) return;
+    let versionBubbles = msg.fullVersions[newIdx];
+    // 删除该消息及其之后的所有消息
+    data.messages = data.messages.slice(0, idx);
+    // 创建新版本的消息序列
+    let newTimestamp = Date.now();
+    for(let i = 0; i < versionBubbles.length; i++){
+        let newMsg = {
+            id: generateMsgId(),
+            role: "ai",
+            content: versionBubbles[i],
+            timestamp: newTimestamp + i * 100,
+            fullVersions: [[versionBubbles[i]]], // 简化：每个新消息的版本只有自身
+            currentVersionIndex: 0
+        };
+        data.messages.push(newMsg);
+    }
+    // 更新原始消息的版本索引（虽然原始消息已被删除，但保存时不需要保留）
+    saveAll();
+    renderChat();
+    scrollChatBottom();
 }
 
 function deleteMessageById(id){
@@ -2062,9 +2104,9 @@ function renderChat(){
         }else{
             if(msg.role==='ai' && !isTransfer){
                 let versionHtml='';
-                if(msg.versions && msg.versions.length>1){
-                    let idx=msg.currentVersionIndex!==undefined?msg.currentVersionIndex:0;
-                    versionHtml=`<div class="version-indicator"><span class="version-arrow" data-id="${msg.id}" data-delta="-1">‹</span>${idx+1}/${msg.versions.length}<span class="version-arrow" data-id="${msg.id}" data-delta="1">›</span></div>`;
+                if(msg.fullVersions && msg.fullVersions.length > 1){
+                    let idx = msg.currentVersionIndex !== undefined ? msg.currentVersionIndex : 0;
+                    versionHtml = `<div class="version-indicator"><span class="version-arrow" data-id="${msg.id}" data-delta="-1">‹</span>${idx+1}/${msg.fullVersions.length}<span class="version-arrow" data-id="${msg.id}" data-delta="1">›</span></div>`;
                 }
                 aiButtons=`<div class="ai-buttons"><div class="regenerate-icon" data-id="${msg.id}">↻</div>${versionHtml}</div>`;
             }
@@ -2403,7 +2445,7 @@ async function sendActiveMessage(){
         if(!content) throw new Error("生成内容为空");
         if(content===lastProactiveMessage){ console.log("主动消息内容重复，已丢弃"); showToast("消息与上一条重复，已跳过"); return; }
         lastProactiveMessage=content;
-        let newMsg={ id:generateMsgId(), role:"ai", content:content, timestamp:Date.now(), versions:[content], currentVersionIndex:0 };
+        let newMsg={ id:generateMsgId(), role:"ai", content:content, timestamp:Date.now(), versions:[content], currentVersionIndex:0, fullVersions:[[content]] };
         data.messages.push(newMsg);
         data.activeMsg.sentToday++;
         data.activeMsg.consecutiveNoReply++;
@@ -2763,7 +2805,7 @@ async function importChatBoxData(file){
                 let content="";
                 if(msg.contentParts && msg.contentParts[0]) content=msg.contentParts[0].text;
                 content=chatBoxTransferToInternal(content);
-                let newMsg={ id:generateMsgId(), role:msg.role, content:content, timestamp:msg.timestamp||Date.now(), versions:[content], currentVersionIndex:0 };
+                let newMsg={ id:generateMsgId(), role:msg.role, content:content, timestamp:msg.timestamp||Date.now(), versions:[content], currentVersionIndex:0, fullVersions:[[content]] };
                 newMessages.push(newMsg);
             }
             newMessages.sort((a,b)=>a.timestamp-b.timestamp);
@@ -2890,9 +2932,9 @@ document.getElementById("sendMessageBtn").onclick=()=>{
 const textarea = document.getElementById("messageInput");
 if(textarea){
     const adjustHeight = () => {
-        textarea.style.height = "36px";
+        textarea.style.height = "32px";
         const scrollH = textarea.scrollHeight;
-        if(scrollH > 36) {
+        if(scrollH > 32) {
             let newH = Math.min(scrollH, 120);
             textarea.style.height = newH + "px";
         }
@@ -2946,6 +2988,7 @@ const scrollBtn = document.getElementById("scrollToBottomBtn");
 const chatContainer = document.getElementById("chatMessagesContainer");
 if(chatContainer && scrollBtn){
     const checkScroll = () => {
+        if(!chatContainer) return;
         const isNearBottom = chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight < 100;
         if(isNearBottom){
             scrollBtn.classList.remove("show");
@@ -2957,7 +3000,6 @@ if(chatContainer && scrollBtn){
     scrollBtn.addEventListener("click", () => {
         chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: "smooth" });
     });
-    // 初始检查
     setTimeout(checkScroll, 100);
 }
 
