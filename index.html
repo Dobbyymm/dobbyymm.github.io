@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.10 - 记忆待确认机制 | 单条总结 | 双视图</title>
+    <title>DobbyChat · 智能角色陪伴 v2.9 - 记忆总结兼容优化 | 费用优化</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <style>
@@ -546,29 +546,6 @@
         .tab-bar { display: flex; gap: 10px; margin-bottom: 16px; }
         .tab-btn { background: #3a3a3e; padding: 6px 16px; border-radius: 30px; cursor: pointer; color: white; }
         .tab-btn.active { background: #007aff; }
-        .memory-view-switch {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 16px;
-            align-items: center;
-            border-bottom: 1px solid var(--border-light);
-            padding-bottom: 8px;
-        }
-        .memory-view-btn {
-            background: transparent;
-            border: none;
-            color: var(--card-text);
-            font-size: 15px;
-            padding: 6px 0;
-            cursor: pointer;
-            opacity: 0.7;
-            transition: opacity 0.2s;
-        }
-        .memory-view-btn.active {
-            opacity: 1;
-            font-weight: 600;
-            border-bottom: 2px solid #007aff;
-        }
         .toast-msg {
             position: fixed;
             bottom: 30px;
@@ -970,23 +947,11 @@
             </div>
         </div>
         <div id="roleMemoryArea" style="display:none;">
-            <!-- 双视图切换栏 -->
-            <div class="memory-view-switch">
-                <button class="memory-view-btn active" data-mem-view="confirmed">已确认记忆</button>
-                <button class="memory-view-btn" data-mem-view="pending">待确认记忆 (<span id="pendingCount">0</span>)</button>
-                <button id="batchSummarizeBtn" class="small-btn" style="margin-left: auto;">🧠 从对话总结记忆</button>
+            <div class="flex-between" style="margin-bottom: 12px;">
+                <button id="addMemoryFactBtn" class="small-btn">+ 添加事实</button>
+                <button id="manualSummarizeBtn" class="small-btn">🧠 从对话总结记忆</button>
             </div>
-            <!-- 已确认视图 -->
-            <div id="confirmedMemView">
-                <div class="flex-between" style="margin-bottom: 12px;">
-                    <button id="addMemoryFactBtn" class="small-btn">+ 添加事实</button>
-                </div>
-                <div class="card-list" id="editMemoryFactsList"></div>
-            </div>
-            <!-- 待确认视图（初始隐藏） -->
-            <div id="pendingMemView" style="display: none;">
-                <div class="card-list" id="pendingMemoryFactsList"></div>
-            </div>
+            <div class="card-list" id="editMemoryFactsList"></div>
         </div>
         <div id="roleWorldArea" style="display:none;">
             <div class="tab-bar"><button class="small-btn world-cat-btn" data-wbcat="人物">人物</button><button data-wbcat="地点">地点</button><button data-wbcat="世界观">世界观</button><button data-wbcat="自定义">自定义</button></div>
@@ -1028,7 +993,7 @@
         </div>
         <div class="card-list"><h4>🔑 主模型（聊天）</h4><div><label>API Key</label><input type="password" id="apiKeyInput"></div><div><label>Base URL</label><input id="baseUrlInput" value="https://api.deepseek.com/v1"></div><div><label>模型</label><input id="modelNameInput" value="deepseek-chat"></div><button id="saveApiSettingsBtn">保存 API 设置</button></div>
         <div class="card-list"><h4>🧠 副模型（记忆总结专用）</h4><div><label><input type="checkbox" id="secondaryApiEnabled"> 启用副模型</label></div><div id="secondaryApiSettings" style="display:none;"><div><label>API Key</label><input type="password" id="secondaryApiKey"></div><div><label>Base URL</label><input id="secondaryBaseUrl"></div><div><label>模型名称</label><input id="secondaryModelName"></div><div><label>Temperature</label><input id="secondaryTemperature" type="number" step="0.1" value="0.3"></div><div><label>Max Tokens</label><input id="secondaryMaxTokens" type="number" value="800"></div><button id="saveSecondarySettingsBtn" class="small-btn">保存</button></div></div>
-        <div class="card-list"><h4>📷 识图功能</h4><div><label><input type="checkbox" id="visionApiEnabled"> 启用识图</label></div><div id="visionApiSettings" style="display:none;"><div><label>视觉模型 API Key</label><input type="password" id="visionApiKey"></div><div><label>模型名称</label><input id="visionModel" value="glm-4v-flash"></div><div><label>Cloudinary Cloud Name</label><input id="cloudName" value="dyuoqc5pz"></div><div><label>Cloudinary Upload Preset</label><input id="uploadPreset" value="dobby_unsigned_preset"></div><button id="saveVisionSettingsBtn" class="small-btn">保存</button></div></div>
+        <div class="card-list"><h4>📷 识图功能</h4><div><label><input type="checkbox" id="visionApiEnabled"> 启用识图</label></div><div id="visionApiSettings" style="display:none;"><div><label>视觉模型 API Key</label><input type="password" id="visionApiKey"></div><div><label>模型名称</label><input id="visionModel" value="glm-4.6v-flash"></div><div><label>Cloudinary Cloud Name</label><input id="cloudName" value="dyuoqc5pz"></div><div><label>Cloudinary Upload Preset</label><input id="uploadPreset" value="dobby_unsigned_preset"></div><button id="saveVisionSettingsBtn" class="small-btn">保存</button></div></div>
         <div class="card-list"><h4>🎨 主页背景图</h4><div><button id="uploadGlobalWallpaperBtn">📷 上传背景图</button><button id="resetGlobalWallpaperBtn">重置默认</button></div></div>
         <div class="card-list"><h4>📦 导入/导出</h4><div><button id="exportChatBtn">导出聊天记录</button><button id="exportPersonaBtn">导出人设</button></div><div><button id="importPersonaBtn">导入人设</button><button id="importChatBoxBtn">📥 从 ChatBox 导入</button></div><div><button id="exportChatBoxBtn">📤 导出为 ChatBox 格式</button><button id="backupAllBtn">全量备份</button><button id="restoreAllBtn">恢复备份</button></div><button id="resetDataBtn" class="danger-btn">重置全部数据</button></div>
     </div>
@@ -1069,7 +1034,7 @@ let lastUserMessageTime = Date.now();
 const TIANXING_API_KEY = "3953ec99c4f5083c015cd59cb94d7fb7";
 let latestWeiboHot = [], latestDouyinHot = [];
 let secondarySettings = { enabled: false, apiKey: "", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat", temperature: 0.3, maxTokens: 800 };
-let visionSettings = { enabled: false, apiKey: "", model: "glm-4v-flash", cloudName: "dyuoqc5pz", uploadPreset: "dobby_unsigned_preset" };
+let visionSettings = { enabled: false, apiKey: "", model: "glm-4.6v-flash", cloudName: "dyuoqc5pz", uploadPreset: "dobby_unsigned_preset" };
 let globalWallpaper = "";
 const themes = {
     wechat: { name: "微信经典", userBg: "#95ec69", userText: "#000000", aiBg: "#eeeeee", aiText: "#000000", fontSize: 16, borderRadius: 12 },
@@ -1159,7 +1124,7 @@ function getCurrentData(){
     if(!roleData[currentRole]){
         roleData[currentRole]={
             messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]},
-            memoryFacts:[], pendingMemoryFacts:[],
+            memoryFacts:[],
             worldbook:{人物:[],地点:[],世界观:[],自定义:[]},
             persona:`你叫${currentRole}，说话简短自然，像朋友聊天。`,
             aiName: currentRole,
@@ -1181,7 +1146,6 @@ function getCurrentData(){
     if(d.lastLocationUpdate===undefined) d.lastLocationUpdate=Date.now();
     if(!d.messages) d.messages=[];
     if(!d.memoryFacts) d.memoryFacts=[];
-    if(!d.pendingMemoryFacts) d.pendingMemoryFacts=[];
     if(!d.activeMsg) d.activeMsg={ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() };
     if(d.aiName === undefined) d.aiName = currentRole;
     let todayStr=new Date().toDateString();
@@ -1198,7 +1162,7 @@ function saveAll(){
 }
 function loadAll(){
     let raw=localStorage.getItem("sullyos_data");
-    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; if(!roleData[role].memoryFacts) roleData[role].memoryFacts=[]; if(!roleData[role].pendingMemoryFacts) roleData[role].pendingMemoryFacts=[]; } }
+    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; if(!roleData[role].memoryFacts) roleData[role].memoryFacts=[]; } }
     let today=new Date().toDateString();
     if(today!==lastActiveDate){ activeMsgCountToday=0; lastActiveDate=today; saveAll(); }
     let sec=localStorage.getItem(SECONDARY_SETTINGS_KEY); if(sec){ try{ let s=JSON.parse(sec); secondarySettings={...secondarySettings,...s}; }catch(e){} }
@@ -2069,7 +2033,7 @@ function showContextMenu(e,msgId,role,content,type,imageUrl){
             }
             menu.remove();
         } },
-        { icon:"🧠", label:"记忆", action:()=>{ summarizeSingleMessage(msgId); menu.remove(); } },
+        { icon:"🧠", label:"记忆", action:()=>{ summarizeLongTermMemory(false); menu.remove(); } },
         { icon:"🗑️", label:"删除", action:()=>{ enterMultiSelectMode(msgId); menu.remove(); } }
     ];
     if(type==="image" && imageUrl) actions.splice(2,0,{ icon:"🖼️", label:"预览图片", action:()=>{ showImagePreview(imageUrl); menu.remove(); } });
@@ -2079,85 +2043,7 @@ function showContextMenu(e,msgId,role,content,type,imageUrl){
     setTimeout(()=>document.addEventListener("click",remove),10);
 }
 
-// 单条消息总结（用于双击菜单中的“记忆”）
-async function summarizeSingleMessage(msgId){
-    let data = getCurrentData();
-    let idx = data.messages.findIndex(m => m.id === msgId);
-    if(idx === -1){
-        showToast("未找到消息");
-        return;
-    }
-    let targetMsg = data.messages[idx];
-    if(targetMsg.role !== "user"){
-        showToast("只能总结用户发送的消息");
-        return;
-    }
-    // 取前后各1条作为上下文
-    let start = Math.max(0, idx-1);
-    let end = Math.min(data.messages.length-1, idx+1);
-    let contextMsgs = data.messages.slice(start, end+1);
-    let contextText = contextMsgs.map(m => `${m.role==='user'?'我':currentRole}: ${m.content}`).join("\n");
-    let prompt = `根据以下对话上下文，只针对【目标消息】内容，提炼出一条简短的事实记忆。用一句陈述句输出，不要加任何额外解释。\n上下文：\n${contextText}\n【目标消息】是：${targetMsg.role==='user'?'我':currentRole}: ${targetMsg.content}\n请输出记忆：`;
-    let config = getMemorySummaryApiConfig();
-    if(!config.apiKey){
-        showToast("未配置API Key，无法总结");
-        return;
-    }
-    showToast("正在提炼记忆...");
-    try{
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-        let res = await fetch(`${config.baseUrl}/chat/completions`,{
-            method:"POST",
-            headers:{
-                "Content-Type":"application/json",
-                "Authorization":`Bearer ${config.apiKey}`
-            },
-            body:JSON.stringify({
-                model:config.model,
-                messages:[
-                    {role:"system",content:"你是记忆管理助手，只输出一句简短的事实陈述。"},
-                    {role:"user",content:prompt}
-                ],
-                temperature:0.3,
-                max_tokens:200
-            }),
-            signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if(!res.ok){
-            let errorText = await res.text();
-            throw new Error(`API错误 ${res.status}: ${errorText.substring(0,200)}`);
-        }
-        let json = await res.json();
-        let content = json.choices[0].message.content.trim();
-        if(!content){
-            throw new Error("返回内容为空");
-        }
-        // 存入待确认记忆
-        if(!data.pendingMemoryFacts) data.pendingMemoryFacts = [];
-        data.pendingMemoryFacts.push({
-            id: generateMsgId(),
-            text: content,
-            timestamp: Date.now(),
-            importance: 0.7
-        });
-        saveAll();
-        showToast("已生成待确认记忆，请到角色编辑页确认");
-        // 如果当前正在编辑该角色，刷新待确认列表视图
-        if(currentEditRole === currentRole && document.getElementById("pendingMemoryFactsList")){
-            renderEditMemoryFacts();
-        }
-    }catch(e){
-        console.error(e);
-        let errorMsg = e.message;
-        if(errorMsg.includes("signal is aborted")) errorMsg = "请求超时，请检查网络后重试";
-        alert("单条总结失败:\n" + errorMsg);
-        showToast("总结失败: "+errorMsg);
-    }
-}
-
-async function getSilenceDuration(text){
+function getSilenceDuration(text){
     const keywords={ "晚安":8*60, "睡觉":8*60, "吃饭":60, "洗澡":30, "上课":120, "学习":120, "开会":120, "网课":120, "复习":120, "健身":60, "运动":60, "公园":60, "看电影":120, "看剧":120 };
     for(let [kw,min] of Object.entries(keywords)) if(text.includes(kw)) return min;
     return 0;
@@ -2369,102 +2255,6 @@ function updateChatBackground(){
     }
 }
 
-// 记忆视图渲染（已确认 + 待确认）
-let currentMemoryView = "confirmed"; // 'confirmed' or 'pending'
-
-function renderMemoryUI(){
-    const confirmedView = document.getElementById("confirmedMemView");
-    const pendingView = document.getElementById("pendingMemView");
-    const pendingCountSpan = document.getElementById("pendingCount");
-    const data = getCurrentData();
-    const pendingCount = data.pendingMemoryFacts ? data.pendingMemoryFacts.length : 0;
-    if(pendingCountSpan) pendingCountSpan.innerText = pendingCount;
-    
-    if(currentMemoryView === "confirmed"){
-        if(confirmedView) confirmedView.style.display = "block";
-        if(pendingView) pendingView.style.display = "none";
-        renderConfirmedMemoryFacts();
-    } else {
-        if(confirmedView) confirmedView.style.display = "none";
-        if(pendingView) pendingView.style.display = "block";
-        renderPendingMemoryFacts();
-    }
-}
-function renderConfirmedMemoryFacts(){
-    let facts = roleData[currentEditRole]?.memoryFacts || [];
-    let container = document.getElementById("editMemoryFactsList");
-    if(!container) return;
-    if(!facts.length){ container.innerHTML='<div style="color:#aaa; text-align:center; padding:16px;">暂无已确认记忆，点击“+添加事实”</div>'; return; }
-    container.innerHTML = facts.map((fact,idx)=>`<div class="item-row">${escapeHtml(fact.text)} <button class="icon-btn-small edit-mem-fact" data-idx="${idx}" title="编辑">✏️</button> <button class="icon-btn-small del-mem-fact" data-idx="${idx}" title="删除">🗑️</button></div>`).join('');
-    document.querySelectorAll('.edit-mem-fact').forEach(btn=>{
-        btn.onclick=()=>{
-            let idx=parseInt(btn.dataset.idx);
-            let fact = roleData[currentEditRole].memoryFacts[idx];
-            let newText = prompt("编辑记忆:", fact.text);
-            if(newText && newText.trim() !== fact.text){
-                fact.text = newText.trim();
-                saveAll();
-                renderConfirmedMemoryFacts();
-                showToast("记忆已更新");
-            }
-        };
-    });
-    document.querySelectorAll('.del-mem-fact').forEach(btn=>{
-        btn.onclick=()=>{
-            let idx=parseInt(btn.dataset.idx);
-            roleData[currentEditRole].memoryFacts.splice(idx,1);
-            saveAll();
-            renderConfirmedMemoryFacts();
-            showToast("已删除记忆");
-        };
-    });
-}
-function renderPendingMemoryFacts(){
-    let facts = roleData[currentEditRole]?.pendingMemoryFacts || [];
-    let container = document.getElementById("pendingMemoryFactsList");
-    if(!container) return;
-    if(!facts.length){ container.innerHTML='<div style="color:#aaa; text-align:center; padding:16px;">暂无待确认记忆</div>'; return; }
-    container.innerHTML = facts.map((fact,idx)=>`<div class="item-row">${escapeHtml(fact.text)} <button class="icon-btn-small confirm-pending" data-idx="${idx}" title="确认">✅</button> <button class="icon-btn-small edit-pending" data-idx="${idx}" title="编辑">✏️</button> <button class="icon-btn-small del-pending" data-idx="${idx}" title="丢弃">🗑️</button></div>`).join('');
-    document.querySelectorAll('.confirm-pending').forEach(btn=>{
-        btn.onclick=()=>{
-            let idx=parseInt(btn.dataset.idx);
-            let fact = roleData[currentEditRole].pendingMemoryFacts[idx];
-            if(fact){
-                roleData[currentEditRole].memoryFacts.push({ ...fact });
-                roleData[currentEditRole].pendingMemoryFacts.splice(idx,1);
-                saveAll();
-                renderMemoryUI(); // 刷新双视图
-                showToast("记忆已确认");
-            }
-        };
-    });
-    document.querySelectorAll('.edit-pending').forEach(btn=>{
-        btn.onclick=()=>{
-            let idx=parseInt(btn.dataset.idx);
-            let fact = roleData[currentEditRole].pendingMemoryFacts[idx];
-            let newText = prompt("编辑记忆:", fact.text);
-            if(newText && newText.trim() !== fact.text){
-                fact.text = newText.trim();
-                // 编辑后直接确认（移入已确认）
-                roleData[currentEditRole].memoryFacts.push({ ...fact });
-                roleData[currentEditRole].pendingMemoryFacts.splice(idx,1);
-                saveAll();
-                renderMemoryUI();
-                showToast("记忆已编辑并确认");
-            }
-        };
-    });
-    document.querySelectorAll('.del-pending').forEach(btn=>{
-        btn.onclick=()=>{
-            let idx=parseInt(btn.dataset.idx);
-            roleData[currentEditRole].pendingMemoryFacts.splice(idx,1);
-            saveAll();
-            renderMemoryUI();
-            showToast("已丢弃");
-        };
-    });
-}
-
 function renderRolesList(){
     let container=document.getElementById("rolesListContainer");
     if(!container) return;
@@ -2478,7 +2268,7 @@ function renderRolesList(){
 function openRoleDetail(roleName){
     currentEditRole=roleName;
     document.getElementById("roleDetailTitle").innerText=`编辑 ${roleName}`;
-    let data=roleData[roleName]||{ avatar:"", userAvatar:"", chatBackground:"", persona:"", aiName: roleName, memoryFacts:[], pendingMemoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, userPersona:"" };
+    let data=roleData[roleName]||{ avatar:"", userAvatar:"", chatBackground:"", persona:"", aiName: roleName, memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, userPersona:"" };
     document.getElementById("editRoleName").value=roleName;
     document.getElementById("editAiName").value=data.aiName||roleName;
     document.getElementById("editPersonaPrompt").value=data.persona||"";
@@ -2493,31 +2283,39 @@ function openRoleDetail(roleName){
         if(data.userAvatar){ userAvatarPreview.style.backgroundImage=`url(${data.userAvatar})`; userAvatarPreview.style.backgroundSize="cover"; userAvatarPreview.innerText=""; }
         else{ userAvatarPreview.style.backgroundImage=""; userAvatarPreview.innerText="👤"; userAvatarPreview.style.fontSize="40px"; }
     }
-    // 初始化视图
-    currentMemoryView = "confirmed";
-    renderMemoryUI();
+    renderEditMemoryFacts();
     renderEditWorldbook();
-    // 绑定视图切换按钮
-    const confirmedBtn = document.querySelector(".memory-view-btn[data-mem-view='confirmed']");
-    const pendingBtn = document.querySelector(".memory-view-btn[data-mem-view='pending']");
-    if(confirmedBtn){
-        confirmedBtn.onclick = () => {
-            currentMemoryView = "confirmed";
-            confirmedBtn.classList.add("active");
-            pendingBtn.classList.remove("active");
-            renderMemoryUI();
-        };
-    }
-    if(pendingBtn){
-        pendingBtn.onclick = () => {
-            currentMemoryView = "pending";
-            pendingBtn.classList.add("active");
-            confirmedBtn.classList.remove("active");
-            renderMemoryUI();
-        };
-    }
     document.getElementById("rolesPage").style.display="none";
     document.getElementById("roleDetailPage").style.display="flex";
+}
+function renderEditMemoryFacts(){
+    let facts=roleData[currentEditRole]?.memoryFacts||[];
+    let container=document.getElementById("editMemoryFactsList");
+    if(!container) return;
+    if(!facts.length){ container.innerHTML='<div style="color:#aaa; text-align:center; padding:16px;">暂无长期记忆，点击“+添加事实”</div>'; return; }
+    container.innerHTML=facts.map((fact,idx)=>`<div class="item-row">${escapeHtml(fact.text)} <button class="icon-btn-small edit-mem-fact" data-idx="${idx}" title="编辑">✏️</button> <button class="icon-btn-small del-mem-fact" data-idx="${idx}" title="删除">🗑️</button></div>`).join('');
+    document.querySelectorAll('.edit-mem-fact').forEach(btn=>{
+        btn.onclick=()=>{
+            let idx=parseInt(btn.dataset.idx);
+            let fact = roleData[currentEditRole].memoryFacts[idx];
+            let newText = prompt("编辑记忆:", fact.text);
+            if(newText && newText.trim() !== fact.text){
+                fact.text = newText.trim();
+                saveAll();
+                renderEditMemoryFacts();
+                showToast("记忆已更新");
+            }
+        };
+    });
+    document.querySelectorAll('.del-mem-fact').forEach(btn=>{
+        btn.onclick=()=>{
+            let idx=parseInt(btn.dataset.idx);
+            roleData[currentEditRole].memoryFacts.splice(idx,1);
+            saveAll();
+            renderEditMemoryFacts();
+            showToast("已删除记忆");
+        };
+    });
 }
 function renderEditWorldbook(){
     let container=document.getElementById("editWorldbookList");
@@ -2536,8 +2334,7 @@ function addMemoryFact(){
         if(!roleData[currentEditRole].memoryFacts) roleData[currentEditRole].memoryFacts=[];
         roleData[currentEditRole].memoryFacts.push({ id:generateMsgId(), text:text.trim(), timestamp:Date.now(), importance:0.7 });
         saveAll();
-        if(currentMemoryView === "confirmed") renderConfirmedMemoryFacts();
-        else renderMemoryUI();
+        renderEditMemoryFacts();
         showToast("已添加记忆事实");
     }
 }
@@ -2586,7 +2383,7 @@ function addNewRoleFromList(){
         let aiName = prompt("角色姓名（AI自称）", newName);
         if(!aiName) aiName = newName;
         roles.push(newName);
-        roleData[newName]={ messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, memoryFacts:[], pendingMemoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:`你叫${aiName}，自然聊天，短句回复。`, aiName:aiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
+        roleData[newName]={ messages:[], location:"家中卧室", schedule:{today:[],tomorrow:[]}, memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:`你叫${aiName}，自然聊天，短句回复。`, aiName:aiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
         saveAll();
         updateRoleDropdownMenu();
         renderRolesList();
@@ -2687,7 +2484,7 @@ async function importChatBoxData(file){
                     if(!newAiName) newAiName = newRoleName;
                     if(newRoleName && !roles.includes(newRoleName)){
                         roles.push(newRoleName);
-                        roleData[newRoleName]={ messages:newMessages, location:"家中卧室", schedule:{today:[],tomorrow:[]}, memoryFacts:[], pendingMemoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:personaContent||`你叫${newAiName}，自然聊天，短句回复。`, aiName:newAiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
+                        roleData[newRoleName]={ messages:newMessages, location:"家中卧室", schedule:{today:[],tomorrow:[]}, memoryFacts:[], worldbook:{人物:[],地点:[],世界观:[],自定义:[]}, persona:personaContent||`你叫${newAiName}，自然聊天，短句回复。`, aiName:newAiName, userPersona:"", avatar:"", userAvatar:"", chatBackground:"", lastLocationUpdate:Date.now(), params:{ contextRange:"20", temperature:0.7, topP:0.8, maxTokens:1024, autoMemEnable:false, autoMemInterval:30 }, msgSinceLastSummary:0, activeMsg:{ enabled:false, dailyLimit:10, stopThreshold:5, activeInterval:90, pollInterval:15, sentToday:0, lastCheckDate:new Date().toDateString(), consecutiveNoReply:0, lastUserMsgTime:Date.now() } };
                         saveAll();
                         refreshRoleSelects();
                         renderRolesList();
@@ -2931,25 +2728,15 @@ async function summarizeLongTermMemory(silent=false){
         if(match) content = match[0];
         let newMemories = JSON.parse(content);
         if(Array.isArray(newMemories)){
-            let addedCount = 0;
             for(let item of newMemories){
-                let txt = typeof item === 'string' ? item : (item.text || item.content || item.memory || JSON.stringify(item));
-                if(txt && !data.memoryFacts.some(f=>f.text===txt) && !data.pendingMemoryFacts.some(f=>f.text===txt)){
-                    data.pendingMemoryFacts.push({ id:generateMsgId(), text:txt, timestamp:Date.now(), importance:0.7 });
-                    addedCount++;
+                let txt = typeof item === 'string' ? item : (item.text || item.content || JSON.stringify(item));
+                if(txt && !data.memoryFacts.some(f=>f.text===txt)){
+                    data.memoryFacts.push({ id:generateMsgId(), text:txt, timestamp:Date.now(), importance:0.7 });
                 }
             }
             saveAll();
-            if(!silent) showToast(`已生成 ${addedCount} 条待确认记忆`);
-            if(currentEditRole && document.getElementById("pendingMemoryFactsList")){
-                // 如果当前在角色编辑页，刷新待确认列表
-                if(currentMemoryView === "pending") renderPendingMemoryFacts();
-                else {
-                    // 更新待确认数量显示
-                    const pendingCountSpan = document.getElementById("pendingCount");
-                    if(pendingCountSpan) pendingCountSpan.innerText = data.pendingMemoryFacts.length;
-                }
-            }
+            if(!silent) showToast("记忆总结完成");
+            if(currentEditRole && document.getElementById("editMemoryFactsList")) renderEditMemoryFacts();
         } else {
             throw new Error("返回数据不是数组");
         }
