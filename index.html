@@ -2711,27 +2711,63 @@ async function summarizeLongTermMemory(silent=false){
     let data=getCurrentData();
     if(data.messages.length<10){ if(!silent) showToast("对话内容太少，无法总结"); return; }
     if(!silent) showToast("正在总结记忆...");
-    let recent=data.messages.slice(-30).map(m=>`${m.role==='user'?'我':currentRole}: ${m.content}`).join("\n");
+    let recent=data.messages.slice(-15).map(m=>`${m.role==='user'?'我':currentRole}: ${m.content}`).join("\n");
     let prompt=`根据以下最近的对话内容，提炼出需要长期记住的用户偏好、关系、重要事件等。输出JSON数组格式，每个元素是一条记忆字符串。\n最近对话：\n${recent}`;
     let config=getMemorySummaryApiConfig();
     if(!config.apiKey){ if(!silent) showToast("未配置任何 API Key，无法总结"); return; }
     try{
-        let res=await fetch(`${config.baseUrl}/chat/completions`,{ method:"POST", headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${config.apiKey}` }, body:JSON.stringify({ model:config.model, messages:[{role:"system",content:"你是记忆管理助手，输出JSON数组。"},{role:"user",content:prompt}], temperature:config.temperature, max_tokens:config.maxTokens }) });
-        if(!res.ok) throw new Error(`API错误: ${res.status}`);
-        let json=await res.json();
-        let content=json.choices[0].message.content;
-        let match=content.match(/\[[\s\S]*?\]/);
-        if(match) content=match[0];
-        let newMemories=JSON.parse(content);
+        // 添加超时控制
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        let res = await fetch(`${config.baseUrl}/chat/completions`,{
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json",
+                "Authorization":`Bearer ${config.apiKey}`
+            },
+            body:JSON.stringify({
+                model:config.model,
+                messages:[
+                    {role:"system",content:"你是记忆管理助手，输出JSON数组。"},
+                    {role:"user",content:prompt}
+                ],
+                temperature:config.temperature,
+                max_tokens:config.maxTokens
+            }),
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
+        if(!res.ok){
+            let errorText = await res.text();
+            throw new Error(`API错误 ${res.status}: ${errorText.substring(0,200)}`);
+        }
+        let json = await res.json();
+        let content = json.choices[0].message.content;
+        let match = content.match(/\[[\s\S]*?\]/);
+        if(match) content = match[0];
+        let newMemories = JSON.parse(content);
         if(Array.isArray(newMemories)){
-            for(let txt of newMemories){
-                if(!data.memoryFacts.some(f=>f.text===txt)) data.memoryFacts.push({ id:generateMsgId(), text:txt, timestamp:Date.now(), importance:0.7 });
+            for(let item of newMemories){
+                let txt = typeof item === 'string' ? item : (item.text || item.content || JSON.stringify(item));
+                if(txt && !data.memoryFacts.some(f=>f.text===txt)){
+                    data.memoryFacts.push({ id:generateMsgId(), text:txt, timestamp:Date.now(), importance:0.7 });
+                }
             }
             saveAll();
             if(!silent) showToast("记忆总结完成");
             if(currentEditRole && document.getElementById("editMemoryFactsList")) renderEditMemoryFacts();
+        } else {
+            throw new Error("返回数据不是数组");
         }
-    }catch(e){ if(!silent) showToast("总结失败: "+e.message); }
+    }catch(e){
+        console.error(e);
+        let errorMsg = e.message;
+        if(errorMsg.includes("signal is aborted")) errorMsg = "请求超时，请检查网络后重试";
+        else if(errorMsg.includes("JSON")) errorMsg = "API返回数据格式错误，可能是模型输出异常";
+        alert("总结失败详情:\n" + errorMsg);
+        if(!silent) showToast("总结失败: "+errorMsg);
+    }
 }
 </script>
 </body>
