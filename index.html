@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.14 - 滑动窗口摘要 | 修复角色切换 | 编辑用户消息</title>
+    <title>DobbyChat · 智能角色陪伴 v2.15 - 精致UI | 触感反馈</title>
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <style>
@@ -17,6 +17,7 @@
             --ai-text-color: #000000;
             --send-btn-bg: var(--user-bubble-bg);
             --send-btn-color: var(--user-text-color);
+            --focus-glow: 0 0 0 3px rgba(149, 236, 105, 0.3);
         }
         :root,
         .theme-dark {
@@ -35,12 +36,15 @@
             --modal-bg: #1c1c1e;
             --modal-text: white;
             --chat-input-area-bg: rgba(0,0,0,0.5);
-            --chat-input-area-backdrop: blur(12px);
+            --chat-input-area-backdrop: blur(16px);
             --timestamp-bg: rgba(0,0,0,0.5);
             --timestamp-color: #ddd;
-            --context-menu-bg: #2c2c2e;
+            --context-menu-bg: rgba(28,28,30,0.9);
             --context-menu-text: white;
             --multi-select-bar-bg: rgba(28,28,30,0.95);
+            --user-bubble-gradient: linear-gradient(135deg, var(--user-bubble-bg), color-mix(in srgb, var(--user-bubble-bg) 85%, black));
+            --ai-bubble-gradient: linear-gradient(135deg, var(--ai-bubble-bg), color-mix(in srgb, var(--ai-bubble-bg) 85%, black));
+            --bubble-shadow: 0 2px 6px rgba(0,0,0,0.2), inset 0 1px 0 rgba(0,0,0,0.3);
         }
         .theme-light {
             --page-bg: rgba(248,246,242,0.85);
@@ -58,12 +62,15 @@
             --modal-bg: white;
             --modal-text: #111;
             --chat-input-area-bg: rgba(255,255,255,0.9);
-            --chat-input-area-backdrop: blur(4px);
+            --chat-input-area-backdrop: blur(16px);
             --timestamp-bg: rgba(0,0,0,0.1);
             --timestamp-color: #666;
-            --context-menu-bg: white;
+            --context-menu-bg: rgba(255,255,255,0.95);
             --context-menu-text: #111;
             --multi-select-bar-bg: rgba(255,255,255,0.95);
+            --user-bubble-gradient: linear-gradient(135deg, var(--user-bubble-bg), color-mix(in srgb, var(--user-bubble-bg) 85%, white));
+            --ai-bubble-gradient: linear-gradient(135deg, var(--ai-bubble-bg), color-mix(in srgb, var(--ai-bubble-bg) 85%, white));
+            --bubble-shadow: 0 2px 6px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.6);
         }
         * {
             -webkit-touch-callout: none !important;
@@ -136,32 +143,33 @@
             align-items: center;
             gap: 28px;
         }
+        /* 主页气泡 - 精致化 */
         .bubble {
             background: rgba(255,255,255,0.92);
             backdrop-filter: blur(40px);
-            border-radius: 60px;
-            padding: 12px 28px;
+            border-radius: 80px;
+            padding: 14px 32px;
             font-weight: 600;
             font-size: 1.6rem;
             text-align: center;
             color: #1f1f2f;
-            box-shadow: 0 12px 25px rgba(0,0,0,0.2);
-            width: 200px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.05);
+            width: 220px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            transition: transform 0.1s ease, background-color 0.1s ease, box-shadow 0.1s ease;
+            gap: 14px;
+            transition: all 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
             cursor: pointer;
         }
         .bubble:active {
-            transform: scale(0.96);
-            background-color: rgba(0,0,0,0.1);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 28px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.05);
         }
-        .bubble.large { width: 240px; padding: 16px 32px; font-size: 1.9rem; background: rgba(255,255,255,0.92); }
+        .bubble.large { width: 260px; padding: 18px 36px; font-size: 2rem; background: rgba(255,255,255,0.92); }
         .bubble.large[data-page="chat"] { background: #FFEBEE; }
-        .bubble.small { font-size: 1.2rem; padding: 8px 20px; width: 150px; }
+        .bubble.small { font-size: 1.3rem; padding: 10px 24px; width: 170px; }
+        
         .header {
             display: flex;
             align-items: center;
@@ -183,7 +191,7 @@
             line-height: 1;
             color: var(--back-home-color);
             cursor: pointer;
-            transition: transform 0.1s;
+            transition: all 0.1s ease;
         }
         .back-home:active { transform: scale(0.96); }
         .icon-btn {
@@ -219,9 +227,9 @@
             right: 16px;
             background: var(--context-menu-bg);
             backdrop-filter: blur(20px);
-            border-radius: 16px;
+            border-radius: 20px;
             padding: 8px 0;
-            min-width: 140px;
+            min-width: 160px;
             box-shadow: 0 8px 20px rgba(0,0,0,0.3);
             z-index: 100;
             border: 1px solid rgba(0,0,0,0.1);
@@ -236,14 +244,14 @@
             pointer-events: auto;
         }
         .role-dropdown-item {
-            padding: 10px 16px;
+            padding: 12px 20px;
             color: var(--context-menu-text);
             font-size: 15px;
             cursor: pointer;
             transition: background 0.1s;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
         .role-dropdown-item:hover { background: rgba(0,0,0,0.1); }
         .role-dropdown-item.active { background: #007aff; color: white; }
@@ -262,7 +270,7 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
             margin-bottom: 16px;
             padding-right: 4px;
             transition: padding-left 0.2s;
@@ -294,7 +302,7 @@
             align-items: flex-start;
             margin-bottom: 6px;
             position: relative;
-            animation: fadeInUp 0.15s ease forwards;
+            animation: fadeInUp 0.12s cubic-bezier(0.2, 0.9, 0.4, 1.1) forwards;
             opacity: 0;
             transform: translateY(4px);
         }
@@ -327,17 +335,21 @@
             padding: 8px 14px;
             border-radius: var(--bubble-radius);
             font-size: var(--msg-font-size);
-            line-height: 1.4;
+            line-height: 1.45;
+            letter-spacing: 0.2px;
             position: relative;
             word-break: break-word;
+            transition: all 0.2s ease;
         }
         .message.user {
-            background: var(--user-bubble-bg);
+            background: var(--user-bubble-gradient, var(--user-bubble-bg));
             color: var(--user-text-color);
+            box-shadow: var(--bubble-shadow);
         }
         .message.ai {
-            background: var(--ai-bubble-bg);
+            background: var(--ai-bubble-gradient, var(--ai-bubble-bg));
             color: var(--ai-text-color);
+            box-shadow: var(--bubble-shadow);
         }
         .message.ai.transfer-message {
             background: transparent !important;
@@ -380,9 +392,9 @@
             background: transparent;
             padding: 4px 4px;
             text-shadow: none;
-            transition: opacity 0.1s;
+            transition: transform 0.1s;
         }
-        .regenerate-icon:active { opacity: 0.6; transform: scale(0.96); }
+        .regenerate-icon:active { transform: scale(0.96); }
         .version-indicator {
             display: flex;
             align-items: center;
@@ -412,13 +424,14 @@
             border: 1px solid var(--border-light);
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             margin-top: 8px;
+            transition: all 0.2s ease;
         }
         .chat-input {
             flex: 1;
             background: var(--input-bg);
             border: none;
-            padding: 4px 12px;
-            border-radius: 30px;
+            padding: 8px 16px;
+            border-radius: 40px;
             outline: none;
             font-size: 16px;
             color: var(--input-text);
@@ -426,7 +439,7 @@
             overflow-y: auto;
             line-height: 24px;
             font-family: inherit;
-            height: 32px;
+            height: 40px;
             max-height: 120px;
             transition: box-shadow 0.2s;
         }
@@ -437,13 +450,13 @@
             color: var(--input-placeholder);
         }
         .send-btn {
-            background: var(--send-btn-bg);
+            background: var(--user-bubble-gradient, var(--user-bubble-bg));
             border: none;
             color: var(--send-btn-color);
-            width: 32px;
-            height: 32px;
+            width: 40px;
+            height: 40px;
             padding: 0;
-            border-radius: 30px;
+            border-radius: 40px;
             font-weight: 600;
             cursor: pointer;
             font-size: 20px;
@@ -453,7 +466,7 @@
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            transition: transform 0.1s;
+            transition: transform 0.1s ease, box-shadow 0.1s;
         }
         .send-btn:active { transform: scale(0.96); }
         .send-btn:disabled {
@@ -483,9 +496,9 @@
             font-size: 24px;
             cursor: pointer;
             padding: 0;
-            width: 32px;
-            height: 32px;
-            border-radius: 30px;
+            width: 40px;
+            height: 40px;
+            border-radius: 40px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -599,9 +612,9 @@
             padding: 4px 8px;
             margin: 0 2px;
             color: var(--card-text);
-            transition: opacity 0.1s;
+            transition: transform 0.1s;
         }
-        .icon-btn-small:active { opacity: 0.6; transform: scale(0.95); }
+        .icon-btn-small:active { transform: scale(0.95); }
         .danger-btn { background: #ff3b30; }
         input, textarea, select {
             border-radius: 20px;
@@ -702,26 +715,41 @@
             margin-bottom: 12px;
             text-align: center;
         }
+        /* 长按菜单精致样式 */
         .context-menu {
             position: fixed;
             background: var(--context-menu-bg);
-            border-radius: 12px;
+            backdrop-filter: blur(20px);
+            border-radius: 20px;
             padding: 8px 0;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
             z-index: 400;
             display: flex;
             flex-direction: column;
-            min-width: 140px;
-            border: 1px solid var(--border-light);
+            min-width: 160px;
+            border: 1px solid rgba(0,0,0,0.1);
+            animation: contextMenuAppear 0.1s ease-out;
+            transform-origin: top left;
+        }
+        @keyframes contextMenuAppear {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
         .context-menu div {
-            padding: 10px 16px;
+            padding: 12px 20px;
             color: var(--context-menu-text);
             cursor: pointer;
             font-size: 14px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
+            transition: background 0.1s;
         }
         .context-menu div:hover { background: rgba(0,0,0,0.1); }
         .multi-select-bar {
@@ -1117,6 +1145,13 @@
                     <span class="slider"></span>
                 </label>
             </div>
+            <div class="mode-switch" style="margin-top:12px;">
+                <span class="switch-label">📳 触感反馈</span>
+                <label class="switch">
+                    <input type="checkbox" id="hapticToggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
         </div>
         <div class="card-list">
             <h4>💬 聊天样式</h4>
@@ -1158,6 +1193,7 @@ const SECONDARY_SETTINGS_KEY = "sullyos_secondary_settings";
 const VISION_SETTINGS_KEY = "sullyos_vision_settings";
 const THEME_SETTINGS_KEY = "app_theme_settings";
 const MODE_SETTINGS_KEY = "app_mode_settings";
+const HAPTIC_SETTINGS_KEY = "haptic_feedback";
 const MAX_VERSIONS = 10;
 let multiSelectMode = false;
 let selectedMsgIds = new Set();
@@ -1170,6 +1206,7 @@ let latestWeiboHot = [], latestDouyinHot = [];
 let secondarySettings = { enabled: false, apiKey: "", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat", temperature: 0.3, maxTokens: 800 };
 let visionSettings = { enabled: false, apiKey: "", model: "glm-4v-flash", cloudName: "dyuoqc5pz", uploadPreset: "dobby_unsigned_preset" };
 let globalWallpaper = "";
+let hapticEnabled = false;
 const themes = {
     wechat: { name: "微信经典", userBg: "#95ec69", userText: "#000000", aiBg: "#eeeeee", aiText: "#000000", fontSize: 16, borderRadius: 12 },
     kakao: { name: "KakaoTalk", userBg: "#fef01b", userText: "#000000", aiBg: "#ffffff", aiText: "#000000", fontSize: 15, borderRadius: 24 },
@@ -1193,6 +1230,13 @@ function generateMsgId() {
     return Date.now() + '-' + Math.random().toString(36).substr(2, 9);
 }
 
+// 触感反馈
+function vibrate(ms = 10) {
+    if (hapticEnabled && navigator.vibrate) {
+        navigator.vibrate(ms);
+    }
+}
+
 function loadThemeSettings() {
     let saved = localStorage.getItem(THEME_SETTINGS_KEY);
     if(saved){
@@ -1214,6 +1258,23 @@ function loadThemeSettings() {
     document.getElementById("borderRadiusValue").innerText = themes.wechat.borderRadius;
     document.querySelectorAll(".theme-btn").forEach(btn=>{ btn.classList.remove("active"); if(btn.dataset.theme==="wechat") btn.classList.add("active"); });
 }
+function adjustColor(hex, percent) {
+    // 简单变暗/变亮辅助函数
+    let r, g, b;
+    if (hex.startsWith('#')) {
+        r = parseInt(hex.slice(1,3), 16);
+        g = parseInt(hex.slice(3,5), 16);
+        b = parseInt(hex.slice(5,7), 16);
+    } else {
+        // 处理 rgb/rgba 简略，直接返回原色
+        return hex;
+    }
+    const amount = Math.floor(255 * percent / 100);
+    r = Math.min(255, Math.max(0, r + amount));
+    g = Math.min(255, Math.max(0, g + amount));
+    b = Math.min(255, Math.max(0, b + amount));
+    return `rgb(${r}, ${g}, ${b})`;
+}
 function applyThemeValues(theme){
     document.documentElement.style.setProperty('--user-bubble-bg', theme.userBg);
     document.documentElement.style.setProperty('--user-text-color', theme.userText);
@@ -1221,9 +1282,24 @@ function applyThemeValues(theme){
     document.documentElement.style.setProperty('--ai-text-color', theme.aiText);
     document.documentElement.style.setProperty('--msg-font-size', theme.fontSize+'px');
     document.documentElement.style.setProperty('--bubble-radius', theme.borderRadius+'px');
+    // 生成渐变
+    let userLighten = adjustColor(theme.userBg, 15);
+    let aiLighten = adjustColor(theme.aiBg, 10);
+    let userDarken = adjustColor(theme.userBg, -15);
+    let aiDarken = adjustColor(theme.aiBg, -10);
+    const isDark = document.documentElement.classList.contains('theme-dark');
+    if (isDark) {
+        document.documentElement.style.setProperty('--user-bubble-gradient', `linear-gradient(135deg, ${theme.userBg}, ${userDarken})`);
+        document.documentElement.style.setProperty('--ai-bubble-gradient', `linear-gradient(135deg, ${theme.aiBg}, ${aiDarken})`);
+        document.documentElement.style.setProperty('--bubble-shadow', `0 2px 6px rgba(0,0,0,0.2), inset 0 1px 0 rgba(0,0,0,0.3)`);
+    } else {
+        document.documentElement.style.setProperty('--user-bubble-gradient', `linear-gradient(135deg, ${theme.userBg}, ${userLighten})`);
+        document.documentElement.style.setProperty('--ai-bubble-gradient', `linear-gradient(135deg, ${theme.aiBg}, ${aiLighten})`);
+        document.documentElement.style.setProperty('--bubble-shadow', `0 2px 6px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.6)`);
+    }
     let rgb = hexToRgb(theme.userBg);
     if(rgb){
-        let glow = `0 0 0 2px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`;
+        let glow = `0 0 0 3px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`;
         document.documentElement.style.setProperty('--focus-glow', glow);
     }
     localStorage.setItem(THEME_SETTINGS_KEY, JSON.stringify({ userBg:theme.userBg, userText:theme.userText, aiBg:theme.aiBg, aiText:theme.aiText, fontSize:theme.fontSize, borderRadius:theme.borderRadius }));
@@ -1253,6 +1329,12 @@ function loadModePreference() {
         document.documentElement.classList.add("theme-light");
         document.getElementById("darkModeToggle").checked = false;
     }
+    // 重新应用主题以更新渐变
+    let savedTheme = localStorage.getItem(THEME_SETTINGS_KEY);
+    if(savedTheme) {
+        let theme = JSON.parse(savedTheme);
+        applyThemeValues(theme);
+    }
 }
 function toggleDarkMode() {
     let isDark = document.getElementById("darkModeToggle").checked;
@@ -1265,6 +1347,23 @@ function toggleDarkMode() {
         document.documentElement.classList.add("theme-light");
         localStorage.setItem(MODE_SETTINGS_KEY, "light");
     }
+    // 重新应用主题以更新渐变
+    let savedTheme = localStorage.getItem(THEME_SETTINGS_KEY);
+    if(savedTheme) {
+        let theme = JSON.parse(savedTheme);
+        applyThemeValues(theme);
+    }
+}
+
+function loadHapticSetting() {
+    let saved = localStorage.getItem(HAPTIC_SETTINGS_KEY);
+    hapticEnabled = saved === "true";
+    const toggle = document.getElementById("hapticToggle");
+    if (toggle) toggle.checked = hapticEnabled;
+}
+function saveHapticSetting() {
+    hapticEnabled = document.getElementById("hapticToggle").checked;
+    localStorage.setItem(HAPTIC_SETTINGS_KEY, hapticEnabled);
 }
 
 let consoleLogs = [];
@@ -1364,6 +1463,7 @@ function loadAll(){
     else{ lastUserMessageTime=Date.now(); if(curData.activeMsg) curData.activeMsg.lastUserMsgTime=lastUserMessageTime; saveAll(); }
     updateRoleDropdownMenu(); loadThemeSettings();
     loadModePreference();
+    loadHapticSetting();
     // 异步生成摘要（如需要）
     setTimeout(() => regenerateSummaryAsync(true), 1000);
 }
@@ -1403,14 +1503,12 @@ function isSummaryEnabledForCurrentRole() {
     if (isNaN(rangeNum)) return false;
     let config = SUMMARY_CONFIG[rangeNum];
     if (!config || !config.enabled) return false;
-    // 必须有副模型配置
     if (!secondarySettings.enabled || !secondarySettings.apiKey) return false;
     return true;
 }
 
 function getContextMessagesForAPI(historyOverride = null) {
     if (historyOverride !== null) {
-        // 重新生成时使用精确历史，不应用摘要
         return historyOverride;
     }
     let data = getCurrentData();
@@ -1424,16 +1522,13 @@ function getContextMessagesForAPI(historyOverride = null) {
     }
     const config = SUMMARY_CONFIG[range];
     if (!config || !config.enabled) {
-        // 不启用摘要：直接返回最近 range 条
         let msgs = data.messages.slice(-range);
         return msgs.map(m => ({ role: m.role, content: m.content }));
     }
     const total = data.messages.length;
     if (total <= range) {
-        // 不足窗口大小，全部原文
         return data.messages.map(m => ({ role: m.role, content: m.content }));
     }
-    // 使用摘要 + 最近 keepRecent 条原文
     let result = [];
     const summary = data.contextSummary;
     if (summary && summary.text) {
@@ -1442,7 +1537,6 @@ function getContextMessagesForAPI(historyOverride = null) {
             content: `【历史摘要】以下是之前对话的概括，用第三人称叙述。\n${summary.text}`
         });
     } else {
-        // 没有摘要，回退：返回最近 range 条原文
         return data.messages.slice(-range).map(m => ({ role: m.role, content: m.content }));
     }
     const keepRecent = config.keepRecent;
@@ -1508,20 +1602,17 @@ async function regenerateSummaryAsync(force = false) {
     const keepRecent = config.keepRecent;
     const total = data.messages.length;
     if (total <= range) {
-        // 窗口未满，不需要摘要
         if (data.contextSummary.text) {
             data.contextSummary = { text: "", coveredCount: 0, lastUpdateMsgCount: total, lastAttemptTime: 0 };
             saveAll();
         }
         return;
     }
-    // 检查是否需要更新
     let last = data.contextSummary;
     let newMessagesCount = total - (last.lastUpdateMsgCount || 0);
     if (!force && last.text && newMessagesCount < 30) {
-        return; // 未达到阈值
+        return;
     }
-    // 冷却检查（失败后等待5分钟）
     if (Date.now() < summaryCooldownUntil) return;
     summaryRegenerationLock = true;
     try {
@@ -1543,13 +1634,12 @@ async function regenerateSummaryAsync(force = false) {
     } catch (err) {
         console.error("摘要生成失败", err);
         summaryCooldownUntil = Date.now() + 5 * 60 * 1000;
-        // 保留旧摘要，不更新
     } finally {
         summaryRegenerationLock = false;
     }
 }
 
-// ========== 原有函数（部分修改） ==========
+// ========== 原有函数（部分修改，增加触感） ==========
 const LOCATION_POOL=["家中卧室","公司练习室","美容室","电视台","录音棚","签售会场","品牌拍摄现场","机场VIP候机厅","酒店房间","健身房","皮肤科诊所","咖啡厅","汉江公园","演唱会后台"];
 function updateLocationAuto(){
     let data=getCurrentData();
@@ -1849,7 +1939,6 @@ async function addAiBubblesSequentially(bubbles){
         scrollChatBottom();
     }
     await checkAutoSummary();
-    // 异步触发摘要更新
     setTimeout(() => regenerateSummaryAsync(), 100);
 }
 
@@ -1882,6 +1971,7 @@ async function sendMessage(text, skipActiveReset=false){
     try{
         let bubbles = await callDeepSeekBubbles(prefixedCurrentMsg, null, "");
         await addAiBubblesSequentially(bubbles);
+        vibrate(10); // 发送成功震动
     }catch(e){
         showToast("回复失败: "+e.message);
         data.messages = data.messages.filter(m => m.id !== userMsg.id);
@@ -1895,13 +1985,11 @@ async function sendMessage(text, skipActiveReset=false){
     }
 }
 
-// 新增：编辑用户消息并重新生成回复
 async function modifyUserMessageAndRegenerate(msgId, newText) {
     let data = getCurrentData();
     let idx = data.messages.findIndex(m => m.id === msgId && m.role === "user");
     if (idx === -1) return;
     
-    // 只允许编辑最后一条用户消息
     let lastUserIdx = -1;
     for (let i = data.messages.length - 1; i >= 0; i--) {
         if (data.messages[i].role === "user") {
@@ -1918,7 +2006,6 @@ async function modifyUserMessageAndRegenerate(msgId, newText) {
     if (oldMsg.content === newText) return;
 
     oldMsg.content = newText;
-    // 删除该消息之后的所有消息
     data.messages = data.messages.slice(0, idx + 1);
     saveAll();
     renderChat();
@@ -1940,6 +2027,7 @@ async function modifyUserMessageAndRegenerate(msgId, newText) {
         });
         let bubbles = await callDeepSeekBubbles(prefixedCurrentMsg, apiHistory, "");
         await addAiBubblesSequentially(bubbles);
+        vibrate(10);
     } catch (e) {
         showToast("重新生成失败: " + e.message);
     } finally {
@@ -1964,6 +2052,7 @@ async function autoGenerateReplyForImage(wrappedDescription, userMsg){
     try{
         let bubbles=await callDeepSeekBubbles(prefixedDesc,null,"");
         await addAiBubblesSequentially(bubbles);
+        vibrate(10);
     }catch(e){ showToast("自动回复失败: "+e.message); }
     finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.innerHTML="💌"; }
 }
@@ -2113,6 +2202,7 @@ async function regenerateAiMessage(msgId){
         renderChat();
         scrollChatBottom();
         showToast(`已生成新版本 (${newVersionIdx+1}/${msg.fullVersions.length})`);
+        vibrate(10);
     }catch(e){
         showToast("重新生成失败: "+e.message);
     } finally{
@@ -2250,6 +2340,7 @@ async function autoGenerateReplyAfterDelete(){
             let apiHistory = history.map(m=>{ if(m.role==="user") return {role:"user",content:m.content}; else return {role:"assistant",content:m.content}; });
             let bubbles=await callDeepSeekBubbles(prefixedCurrentMsg, apiHistory, "");
             await addAiBubblesSequentially(bubbles);
+            vibrate(10);
         }catch(e){ showToast("自动回复失败: "+e.message); }
         finally{ isWaitingForAI=false; btn.disabled=false; btn.classList.remove("loading"); btn.innerHTML="💌"; }
     }
@@ -2458,6 +2549,7 @@ function showContextMenu(e,msgId,role,content,type,imageUrl){
     document.body.appendChild(menu);
     let remove=()=>{ if(menu.parentNode) menu.remove(); document.removeEventListener("click",remove); };
     setTimeout(()=>document.addEventListener("click",remove),10);
+    vibrate(5);
 }
 
 async function summarizeSingleMessage(msgId){
@@ -2691,6 +2783,7 @@ async function sendActiveMessage(){
         renderChat();
         scrollChatBottom();
         showToast("主动消息已发送");
+        vibrate(10);
     }catch(e){ console.error(e); showToast("主动消息生成失败: "+e.message); }
     finally{ isWaitingForAI=false; }
 }
@@ -2808,7 +2901,6 @@ function updateRoleDropdownMenu(){
     for(let role of roles){
         const avatar=(roleData[role] && roleData[role].avatar)||"";
         const activeClass=role===currentRole?"active":"";
-        // 使用 getAttribute 兼容特殊字符
         const dataRoleAttr = role.replace(/"/g, '&quot;');
         html+=`<div class="role-dropdown-item ${activeClass}" data-role="${dataRoleAttr}"><div class="role-dropdown-avatar" style="background-image:url('${avatar}'); background-size:cover; background-position:center;">${avatar?'':'🤖'}</div><span>${escapeHtml(role)}</span></div>`;
     }
@@ -2830,8 +2922,8 @@ function updateRoleDropdownMenu(){
                 renderLocationPage();
                 updateRoleDisplay();
                 updateRoleDropdownMenu();
+                vibrate(10);
             }
-            // 关闭菜单
             menu.classList.remove("show");
         });
     });
@@ -3018,7 +3110,6 @@ function saveRoleParamsFromModal(){
     showToast("角色参数已保存");
     document.getElementById("roleParamsModal").style.display="none";
     restartActiveMsgTimer();
-    // 如果 contextRange 改变，清空摘要并重新生成
     if (oldRange !== data.params.contextRange) {
         data.contextSummary = { text: "", coveredCount: 0, lastUpdateMsgCount: data.messages.length, lastAttemptTime: 0 };
         saveAll();
@@ -3235,6 +3326,7 @@ document.getElementById("searchKeywordInput").addEventListener("input",e=>perfor
 document.getElementById("searchModal").addEventListener("click",e=>{ if(e.target===document.getElementById("searchModal")) closeSearchModal(); });
 document.getElementById("roleDropdownBtn").onclick=toggleRoleDropdown;
 document.getElementById("darkModeToggle").addEventListener("change", toggleDarkMode);
+document.getElementById("hapticToggle").addEventListener("change", saveHapticSetting);
 
 const scrollBtn = document.getElementById("scrollToBottomBtn");
 const chatContainer = document.getElementById("chatMessagesContainer");
