@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>DobbyChat · 智能角色陪伴 v2.18 - 离线补发主动消息 | 主页触发 | 多气泡组</title>
+    <title>DobbyChat · 智能角色陪伴 v2.19 - 统一上下文 | 独立系统消息 | 质量提升</title>
     <style>
         /* ========== 基础变量（深色模式默认） ========== */
         :root {
@@ -1403,7 +1403,6 @@ function getCurrentData(){
     if(d.aiName === undefined) d.aiName = currentRole;
     if(!d.contextSummary) d.contextSummary = { text: "", coveredCount: 0, lastUpdateMsgCount: 0, lastAttemptTime: 0 };
     if(d.lastOnlineTime === undefined) d.lastOnlineTime = Date.now();
-    // 迁移旧数据：移除已废弃字段
     if(d.activeMsg.activeInterval !== undefined) delete d.activeMsg.activeInterval;
     if(d.activeMsg.pollInterval !== undefined) delete d.activeMsg.pollInterval;
     if(d.activeMsg.stopThreshold !== undefined) delete d.activeMsg.stopThreshold;
@@ -1432,7 +1431,7 @@ function saveAll(){
 }
 function loadAll(){
     let raw=localStorage.getItem("sullyos_data");
-    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; if(!roleData[role].memoryFacts) roleData[role].memoryFacts=[]; if(!roleData[role].pendingMemoryFacts) roleData[role].pendingMemoryFacts=[]; if(roleData[role].userName===undefined) roleData[role].userName=""; if(!roleData[role].contextSummary) roleData[role].contextSummary = { text: "", coveredCount: 0, lastUpdateMsgCount: 0, lastAttemptTime: 0 }; if(roleData[role].lastOnlineTime===undefined) roleData[role].lastOnlineTime=Date.now(); if(roleData[role].activeMsg){ if(roleData[role].activeMsg.activeInterval!==undefined) delete roleData[role].activeMsg.activeInterval; if(roleData[role].activeMsg.pollInterval!==undefined) delete roleData[role].activeMsg.pollInterval; if(roleData[role].activeMsg.stopThreshold!==undefined) delete roleData[role].activeMsg.stopThreshold; if(roleData[role].activeMsg.consecutiveNoReply!==undefined) delete roleData[role].activeMsg.consecutiveNoReply; if(roleData[role].activeMsg.maxPerSession===undefined) roleData[role].activeMsg.maxPerSession=3; if(roleData[role].activeMsg.offlineMinMinutes===undefined) roleData[role].activeMsg.offlineMinMinutes=60; if(roleData[role].activeMsg.offlineProbability===undefined) roleData[role].activeMsg.offlineProbability=60; } } }
+    if(raw){ let d=JSON.parse(raw); roles=d.roles; roleData=d.roleData; lastActiveDate=d.lastActiveDate; activeMsgCountToday=d.activeMsgCountToday; globalWallpaper=d.globalWallpaper||""; for(let role in roleData){ if(roleData[role].messages){ for(let msg of roleData[role].messages){ if(msg.hasPrefix===undefined) msg.hasPrefix=false; } } if(roleData[role].aiName===undefined) roleData[role].aiName=role; if(!roleData[role].memoryFacts) roleData[role].memoryFacts=[]; if(!roleData[role].pendingMemoryFacts) roleData[role].pendingMemoryFacts=[]; if(roleData[role].userName===undefined) roleData[role].userName=""; if(!roleData[role].contextSummary) roleData[role].contextSummary = { text: "", coveredCount: 0, lastUpdateMsgCount: 0, lastAttemptTime: 0 }; if(roleData[role].lastOnlineTime===undefined) roleData[role].lastOnlineTime=Date.now(); if(roleData[role].activeMsg){ if(roleData[role].activeMsg.maxPerSession===undefined) roleData[role].activeMsg.maxPerSession=3; if(roleData[role].activeMsg.offlineMinMinutes===undefined) roleData[role].activeMsg.offlineMinMinutes=60; if(roleData[role].activeMsg.offlineProbability===undefined) roleData[role].activeMsg.offlineProbability=60; } } }
     let today=new Date().toDateString();
     if(today!==lastActiveDate){ activeMsgCountToday=0; lastActiveDate=today; saveAll(); }
     let sec=localStorage.getItem(SECONDARY_SETTINGS_KEY); if(sec){ try{ let s=JSON.parse(sec); secondarySettings={...secondarySettings,...s}; }catch(e){} }
@@ -1498,15 +1497,24 @@ function isSummaryEnabledForCurrentRole() {
     return true;
 }
 
-// 修复角色映射问题：将内部 ai 转换为 assistant
-function getContextMessagesForAPI(historyOverride = null) {
+// 核心历史获取函数，支持自定义历史数组（用于重新生成）
+function getContextMessagesForAPI(historyOverride = null, fullHistoryArray = null) {
+    // 如果传入了 historyOverride，直接返回（用于特殊场景）
     if (historyOverride !== null) {
         return historyOverride;
     }
-    let data = getCurrentData();
+    // 确定原始历史数组：优先使用 fullHistoryArray，否则用全局 messages
+    let baseMessages;
+    if (fullHistoryArray !== null) {
+        baseMessages = fullHistoryArray;
+    } else {
+        let data = getCurrentData();
+        baseMessages = data.messages;
+    }
+    let data = getCurrentData(); // 用于获取配置和摘要
     let rangeRaw = data.params.contextRange;
     if (rangeRaw === "all") {
-        return data.messages.map(m => ({ 
+        return baseMessages.map(m => ({ 
             role: m.role === "ai" ? "assistant" : m.role, 
             content: m.content 
         }));
@@ -1516,21 +1524,23 @@ function getContextMessagesForAPI(historyOverride = null) {
         range = 20;
     }
     const config = SUMMARY_CONFIG[range];
+    // 如果不启用摘要，直接截取最近 range 条
     if (!config || !config.enabled) {
         let limit = Math.min(range, 30);
-        let msgs = data.messages.slice(-limit);
+        let msgs = baseMessages.slice(-limit);
         return msgs.map(m => ({ 
             role: m.role === "ai" ? "assistant" : m.role, 
             content: m.content 
         }));
     }
-    const total = data.messages.length;
+    const total = baseMessages.length;
     if (total <= range) {
-        return data.messages.map(m => ({ 
+        return baseMessages.map(m => ({ 
             role: m.role === "ai" ? "assistant" : m.role, 
             content: m.content 
         }));
     }
+    // 启用摘要：使用摘要 + 最近 keepRecent 条原文
     let result = [];
     const summary = data.contextSummary;
     if (summary && summary.text) {
@@ -1540,14 +1550,14 @@ function getContextMessagesForAPI(historyOverride = null) {
         });
     } else {
         let fallbackLimit = Math.min(range, 30);
-        let msgs = data.messages.slice(-fallbackLimit);
+        let msgs = baseMessages.slice(-fallbackLimit);
         return msgs.map(m => ({ 
             role: m.role === "ai" ? "assistant" : m.role, 
             content: m.content 
         }));
     }
     const keepRecent = config.keepRecent;
-    const recentMessages = data.messages.slice(-keepRecent);
+    const recentMessages = baseMessages.slice(-keepRecent);
     for (let msg of recentMessages) {
         result.push({ 
             role: msg.role === "ai" ? "assistant" : msg.role, 
@@ -1649,8 +1659,44 @@ async function regenerateSummaryAsync(force = false) {
     }
 }
 
-// ========== 离线补发主动消息核心函数 ==========
-// 判断是否需要生成主动消息
+// ========== 动态系统信息块（独立 system 消息）==========
+function buildDynamicSystemBlock() {
+    let data = getCurrentData();
+    let now = new Date();
+    let month = now.getMonth()+1;
+    let day = now.getDate();
+    let hours = now.getHours();
+    let minutes = now.getMinutes().toString().padStart(2,'0');
+    let weekday = ["日","一","二","三","四","五","六"][now.getDay()];
+    let timeStr = `${month}月${day}日 ${hours}:${minutes} 周${weekday}`;
+    let lines = [];
+    lines.push(`🔹 系统信息：`);
+    lines.push(timeStr);
+    if(data.location) lines.push(`${data.aiName}在${data.location}`);
+    let lastMsgTime = data.messages.length > 0 ? data.messages[data.messages.length-1].timestamp : null;
+    if(lastMsgTime){
+        let gapMin = Math.floor((Date.now() - lastMsgTime) / 60000);
+        if(gapMin >= 1 && gapMin < 60) lines.push(`上次聊天：${gapMin}分钟前`);
+        else if(gapMin >= 60 && gapMin < 1440) lines.push(`上次聊天：${Math.floor(gapMin/60)}小时前`);
+        else if(gapMin >= 1440) lines.push(`上次聊天：${Math.floor(gapMin/1440)}天前`);
+    }
+    let userName = data.userName || "用户";
+    if(data.userPersona) lines.push(`对方：${userName}，${data.userPersona}`);
+    else if(data.userName) lines.push(`对方：${userName}`);
+    if(data.worldbook){
+        let wb = data.worldbook;
+        let wbParts = [];
+        if(wb.人物?.length) wbParts.push(`认识的人：${wb.人物.slice(0,2).join("、")}`);
+        if(wb.地点?.length) wbParts.push(`知道的地方：${wb.地点.slice(0,2).join("、")}`);
+        if(wbParts.length) lines.push(wbParts.join("。"));
+    }
+    // 添加相关记忆
+    let recentMemory = retrieveRelevantMemoryFacts(""); // 简化：获取相关记忆，无特定查询
+    if(recentMemory.length) lines.push(`相关记忆：${recentMemory.join("；")}`);
+    return lines.join("\n");
+}
+
+// ========== 离线补发主动消息 ==========
 async function maybeSendOfflineMessages() {
     let data = getCurrentData();
     if (!data.activeMsg.enabled) return;
@@ -1658,15 +1704,12 @@ async function maybeSendOfflineMessages() {
     let offlineMinutes = (now - data.lastOnlineTime) / 60000;
     let minOffline = data.activeMsg.offlineMinMinutes;
     if (offlineMinutes < minOffline) return;
-    // 概率触发
     let prob = data.activeMsg.offlineProbability;
     if (Math.random() * 100 > prob) return;
-    // 每日剩余配额
     let remaining = data.activeMsg.dailyLimit - data.activeMsg.sentToday;
     if (remaining <= 0) return;
     let maxToGenerate = Math.min(data.activeMsg.maxPerSession, remaining);
     if (maxToGenerate <= 0) return;
-    // 生成消息
     showToast("正在补发离线消息...");
     let success = await generateAndInsertOfflineMessages(maxToGenerate, offlineMinutes, data.lastOnlineTime);
     if (success) {
@@ -1678,11 +1721,9 @@ async function maybeSendOfflineMessages() {
     }
 }
 
-// 调用模型生成离线消息
 async function generateAndInsertOfflineMessages(maxCount, offlineMinutes, lastTime) {
     let data = getCurrentData();
-    let scheduleCtx = getScheduleContext();   // 行程
-    let hotCtx = "";  // 离线时不使用热点，避免预知未来
+    let scheduleCtx = getScheduleContext();
     let statusInfo = `当前地点：${data.location}。${scheduleCtx}`;
     let memoryFacts = (data.memoryFacts || []).slice(0, 3).map(f => f.text).join("；");
     let memoryBlock = memoryFacts ? `\n【长期记忆】${memoryFacts}\n` : "";
@@ -1770,12 +1811,11 @@ ${memoryBlock}
     return false;
 }
 
-// 生成 groupId 辅助函数
 function generateGroupId() {
     return 'g_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8);
 }
 
-// ========== 原有函数（修改主动消息相关） ==========
+// ========== 原有函数（部分修改，支持独立系统消息）==========
 const LOCATION_POOL=["家中卧室","公司练习室","美容室","电视台","录音棚","签售会场","品牌拍摄现场","机场VIP候机厅","酒店房间","健身房","皮肤科诊所","咖啡厅","汉江公园","演唱会后台"];
 function updateLocationAuto(){
     let data=getCurrentData();
@@ -1923,50 +1963,6 @@ function buildBaseSystemPrompt(){
     return `${livingRules}\n\n${data.persona}${transferRule}`;
 }
 
-function buildSystemInfoBlock(){
-    let data = getCurrentData();
-    let now = new Date();
-    let month = now.getMonth()+1;
-    let day = now.getDate();
-    let hours = now.getHours();
-    let minutes = now.getMinutes().toString().padStart(2,'0');
-    let weekday = ["日","一","二","三","四","五","六"][now.getDay()];
-    let timeStr = `${month}月${day}日 ${hours}:${minutes} 周${weekday}`;
-    let lines = [];
-    lines.push(`🔹 系统信息：`);
-    lines.push(timeStr);
-    if(data.location) lines.push(`${data.aiName}在${data.location}`);
-    let lastMsgTime = data.messages.length > 0 ? data.messages[data.messages.length-1].timestamp : null;
-    if(lastMsgTime){
-        let gapMin = Math.floor((Date.now() - lastMsgTime) / 60000);
-        if(gapMin >= 1 && gapMin < 60) lines.push(`上次聊天：${gapMin}分钟前`);
-        else if(gapMin >= 60 && gapMin < 1440) lines.push(`上次聊天：${Math.floor(gapMin/60)}小时前`);
-        else if(gapMin >= 1440) lines.push(`上次聊天：${Math.floor(gapMin/1440)}天前`);
-    }
-    let userName = data.userName || "用户";
-    if(data.userPersona) lines.push(`对方：${userName}，${data.userPersona}`);
-    else if(data.userName) lines.push(`对方：${userName}`);
-    if(data.worldbook){
-        let wb = data.worldbook;
-        let wbParts = [];
-        if(wb.人物?.length) wbParts.push(`认识的人：${wb.人物.slice(0,2).join("、")}`);
-        if(wb.地点?.length) wbParts.push(`知道的地方：${wb.地点.slice(0,2).join("、")}`);
-        if(wbParts.length) lines.push(wbParts.join("。"));
-    }
-    return lines;
-}
-
-function buildCurrentUserMessageWithPrefix(currentUserMessage, scheduleContext="", hotContext=""){
-    let lines = buildSystemInfoBlock();
-    if(scheduleContext) lines.push(scheduleContext);
-    if(hotContext) lines.push(hotContext);
-    let facts = retrieveRelevantMemoryFacts(currentUserMessage);
-    if(facts.length) lines.push(`相关记忆：${facts.join("；")}`);
-    let block = lines.join("\n");
-    let separator = "\n---\n";
-    return block + separator + currentUserMessage;
-}
-
 function shouldInjectSchedule(m){ if(!m) return false; const keys=["行程","计划","安排","干嘛","干啥","去哪里","几点","什么时候","忙不忙","有事吗","接下来","今天","明天","今日","昨日","今天在干嘛","今天做了什么","今天有什么"]; return keys.some(k=>m.includes(k)); }
 function getScheduleContext(){
     let data=getCurrentData();
@@ -2013,17 +2009,23 @@ function splitNaturalResponse(text) {
     return result;
 }
 
-async function callDeepSeekBubbles(currentUserPrefixedMessage, historyOverride=null, extraSystem=""){
+// 核心 API 调用函数，新增 dynamicSystemBlock 参数
+async function callDeepSeekBubbles(currentUserMessage, historyOverride = null, extraSystem = "", dynamicSystemBlock = "") {
     let settings = getApiSettings();
     if(!settings.apiKey) throw new Error("请先设置 API Key");
     let data = getCurrentData();
     let systemContent = buildBaseSystemPrompt() + extraSystem;
     let messages = [{role:"system", content: systemContent}];
+    // 添加动态系统信息块（独立 system 消息）
+    if (dynamicSystemBlock) {
+        messages.push({role:"system", content: dynamicSystemBlock});
+    }
+    // 获取历史消息（已截断/摘要）
     let history;
     if (historyOverride) {
         history = historyOverride;
     } else {
-        let ctx = getContextMessagesForAPI(null);
+        let ctx = getContextMessagesForAPI(null, null);
         history = ctx;
     }
     for(let m of history){
@@ -2031,7 +2033,7 @@ async function callDeepSeekBubbles(currentUserPrefixedMessage, historyOverride=n
         else if(m.role === "assistant") messages.push({role:"assistant", content: m.content});
         else if(m.role === "system") messages.push({role:"system", content: m.content});
     }
-    if(currentUserPrefixedMessage) messages.push({role:"user", content: currentUserPrefixedMessage});
+    if(currentUserMessage) messages.push({role:"user", content: currentUserMessage});
     let body = {
         model: settings.modelName,
         messages,
@@ -2090,20 +2092,15 @@ async function addGroupedAiMessages(bubbles, baseTimestamp = null) {
     scrollChatBottom();
 }
 
+// 修改 sendMessage：使用独立系统消息，不再拼接前缀
 async function sendMessage(text, skipActiveReset=false){
     if(!text.trim() || isWaitingForAI) return;
     updateLocationAuto();
     let data=getCurrentData();
-    // 每次发送消息后更新 lastOnlineTime
     data.lastOnlineTime = Date.now();
     saveAll();
     
-    let scheduleCtx = shouldInjectSchedule(text) ? getScheduleContext() : "";
-    let hotCtx = shouldInjectHot(text) ? getHotContext() : "";
-    let prefixedCurrentMsg = buildCurrentUserMessageWithPrefix(text, scheduleCtx, hotCtx);
-    
     let userMsg = { id: generateMsgId(), role: "user", content: text, timestamp: Date.now() };
-    
     data.messages.push(userMsg);
     saveAll();
     renderChat();
@@ -2117,9 +2114,9 @@ async function sendMessage(text, skipActiveReset=false){
     btn.disabled = true;
     btn.classList.add("loading");
     btn.innerHTML = '<div class="spinner"></div>';
-    
     try{
-        let bubbles = await callDeepSeekBubbles(prefixedCurrentMsg, null, "");
+        let dynamicBlock = buildDynamicSystemBlock();
+        let bubbles = await callDeepSeekBubbles(text, null, "", dynamicBlock);
         await addGroupedAiMessages(bubbles);
         vibrate(10);
     }catch(e){
@@ -2161,21 +2158,16 @@ async function modifyUserMessageAndRegenerate(msgId, newText) {
     renderChat();
 
     if (isWaitingForAI) return;
-    let scheduleCtx = shouldInjectSchedule(newText) ? getScheduleContext() : "";
-    let hotCtx = shouldInjectHot(newText) ? getHotContext() : "";
-    let prefixedCurrentMsg = buildCurrentUserMessageWithPrefix(newText, scheduleCtx, hotCtx);
     isWaitingForAI = true;
     let btn = document.getElementById("sendMessageBtn");
     btn.disabled = true;
     btn.classList.add("loading");
     btn.innerHTML = '<div class="spinner"></div>';
     try {
-        let history = data.messages.slice(0, -1);
-        let apiHistory = history.map(m => {
-            if (m.role === "user") return { role: "user", content: m.content };
-            else return { role: "assistant", content: m.content };
-        });
-        let bubbles = await callDeepSeekBubbles(prefixedCurrentMsg, apiHistory, "");
+        let fullHistory = data.messages.slice(0, -1); // 不包括刚编辑的那条用户消息
+        let truncatedHistory = getContextMessagesForAPI(null, fullHistory);
+        let dynamicBlock = buildDynamicSystemBlock();
+        let bubbles = await callDeepSeekBubbles(newText, truncatedHistory, "", dynamicBlock);
         await addGroupedAiMessages(bubbles);
         vibrate(10);
     } catch (e) {
@@ -2193,14 +2185,15 @@ async function autoGenerateReplyForImage(wrappedDescription, userMsg){
     if(isWaitingForAI) return;
     let scheduleCtx = shouldInjectSchedule(wrappedDescription) ? getScheduleContext() : "";
     let hotCtx = shouldInjectHot(wrappedDescription) ? getHotContext() : "";
-    let prefixedDesc = buildCurrentUserMessageWithPrefix(wrappedDescription, scheduleCtx, hotCtx);
+    // 图片消息处理：不需要额外前缀，直接调用
+    let dynamicBlock = buildDynamicSystemBlock();
     isWaitingForAI=true;
     let btn=document.getElementById("sendMessageBtn");
     btn.disabled=true;
     btn.classList.add("loading");
     btn.innerHTML = '<div class="spinner"></div>';
     try{
-        let bubbles=await callDeepSeekBubbles(prefixedDesc,null,"");
+        let bubbles=await callDeepSeekBubbles(wrappedDescription, null, "", dynamicBlock);
         await addGroupedAiMessages(bubbles);
         vibrate(10);
     }catch(e){ showToast("自动回复失败: "+e.message); }
@@ -2311,21 +2304,21 @@ async function editAiMessageDirectly(msgId, newText){
     showToast("已修改消息");
 }
 
+// 重新生成 AI 消息：使用完整历史但应用上下文截断
 async function regenerateAiMessage(msgId){
     let data = getCurrentData();
     let idx = data.messages.findIndex(m => m.id === msgId && m.role === "ai");
     if(idx === -1) return;
     let msg = data.messages[idx];
-    let history = data.messages.slice(0, idx);
-    let apiHistory = history.map(m => {
-        if(m.role === "user") return {role:"user", content: m.content};
-        else return {role:"assistant", content: m.content};
-    });
+    // 获取该消息之前的所有消息（完整历史）
+    let fullHistory = data.messages.slice(0, idx);
+    let truncatedHistory = getContextMessagesForAPI(null, fullHistory);
     if(isWaitingForAI) return showToast("请稍后");
     isWaitingForAI = true;
     showToast("重新生成中...");
     try{
-        let bubbles = await callDeepSeekBubbles(null, apiHistory, "");
+        let dynamicBlock = buildDynamicSystemBlock();
+        let bubbles = await callDeepSeekBubbles(null, truncatedHistory, "", dynamicBlock);
         if(!bubbles.length) throw new Error("生成空回复");
         if(!msg.fullVersions){
             msg.fullVersions = [[msg.content]];
@@ -2479,18 +2472,16 @@ async function autoGenerateReplyAfterDelete(){
     if(lastMsg.role==="user"){
         let text=lastMsg.content;
         if(isWaitingForAI) return;
-        let scheduleCtx = shouldInjectSchedule(text) ? getScheduleContext() : "";
-        let hotCtx = shouldInjectHot(text) ? getHotContext() : "";
-        let prefixedCurrentMsg = buildCurrentUserMessageWithPrefix(text, scheduleCtx, hotCtx);
+        let dynamicBlock = buildDynamicSystemBlock();
         isWaitingForAI=true;
         let btn=document.getElementById("sendMessageBtn");
         btn.disabled=true;
         btn.classList.add("loading");
         btn.innerHTML = '<div class="spinner"></div>';
         try{
-            let history = data.messages.slice(0,-1);
-            let apiHistory = history.map(m=>{ if(m.role==="user") return {role:"user",content:m.content}; else return {role:"assistant",content:m.content}; });
-            let bubbles=await callDeepSeekBubbles(prefixedCurrentMsg, apiHistory, "");
+            let fullHistory = data.messages.slice(0,-1);
+            let truncatedHistory = getContextMessagesForAPI(null, fullHistory);
+            let bubbles=await callDeepSeekBubbles(text, truncatedHistory, "", dynamicBlock);
             await addGroupedAiMessages(bubbles);
             vibrate(10);
         }catch(e){ showToast("自动回复失败: "+e.message); }
@@ -2894,12 +2885,12 @@ function getSilenceDuration(text){
     for(let [kw,min] of Object.entries(keywords)) if(text.includes(kw)) return min;
     return 0;
 }
-async function buildActiveMessagePrompt(){ /* 不再用于在线主动消息，保留占位 */ return ""; }
-async function sendActiveMessage(){ /* 已废弃 */ }
-async function checkAndSendActiveMessage(){ /* 已废弃 */ }
-function startActiveMsgTimer(){ /* 已废弃 */ }
-function stopActiveMsgTimer(){ /* 已废弃 */ }
-function restartActiveMsgTimer(){ /* 已废弃 */ }
+async function buildActiveMessagePrompt(){ return ""; }
+async function sendActiveMessage(){}
+async function checkAndSendActiveMessage(){}
+function startActiveMsgTimer(){}
+function stopActiveMsgTimer(){}
+function restartActiveMsgTimer(){}
 
 async function fetchHotNews(){
     showToast("获取热搜中...");
@@ -3000,7 +2991,6 @@ function updateRoleDropdownMenu(){
                 currentRole=newRole;
                 saveAll();
                 let newData=getCurrentData();
-                // 更新 lastOnlineTime 为新角色的值（没有则初始化为当前时间）
                 if(newData.lastOnlineTime === undefined) newData.lastOnlineTime = Date.now();
                 updateChatBackground();
                 currentDisplayCount = Math.min(50, getCurrentData().messages.length);
@@ -3320,7 +3310,6 @@ function showPage(pageId){
             wallpaper.style.display = "block";
         }
         if (chatWallpaper) chatWallpaper.style.display = "none";
-        // 主页显示时尝试自动刷新热点（限频120分钟）
         let now = Date.now();
         let last = localStorage.getItem("lastAutoHotRefresh");
         if (last) lastAutoHotRefresh = parseInt(last);
@@ -3329,7 +3318,6 @@ function showPage(pageId){
             localStorage.setItem("lastAutoHotRefresh", now);
             lastAutoHotRefresh = now;
         }
-        // 主页显示时触发离线补发
         maybeSendOfflineMessages();
     } else {
         if (wallpaper) wallpaper.style.display = "none";
